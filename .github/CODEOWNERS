@@ -1,0 +1,17 @@
+# Owner of the CODEOWNERS file itself 
+.github/CODEOWNERS                    @AmineElBiyadi
+
+# Global fallback
+*                                     @AmineElBiyadi
+
+# Microservices
+/service-billetterie/                  @amosnyirenda123  @AmineElBiyadi
+/service-abonnement/                   @raihana10  @AmineElBiyadi
+/service-utilisateur/                  @Oumhella  @AmineElBiyadi
+/service-coordination-transport/       @anadouae  @AmineElBiyadi
+/service-notification/                 @ferdaoussBouchennou  @AmineElBiyadi          
+/service-paiement/                     @Nouhaerr404  @AmineElBiyadi
+/service-suivi-vehicule/               @Ayarssn @AmineElBiyadi  
+/service-analytique/                   @Taha7486  @AmineElBiyadi
+/service-gestion-incidents/            @ami-ne001  @AmineElBiyadi
+/api-gateway/                          @Houssam265 @AmineElBiyadi
