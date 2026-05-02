@@ -1,0 +1,24 @@
+services:
+  db-abonnement:
+    build: ./docker/database
+    container_name: db-abonnement
+    ports:
+      - "3307:3306"
+    environment:
+      - MYSQL_DATABASE=abonnement_db
+      - MYSQL_USER=abonnement_user
+      - MYSQL_PASSWORD=abonnement_pass
+      - MYSQL_ROOT_PASSWORD=root_pass
+
+  service-abonnement:
+    build: .
+    container_name: service-abonnement
+    ports:
+      - "8082:8082"
+    depends_on:
+      db-abonnement:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_USER=abonnement_user
+      - DB_PASSWORD=abonnement_pass
