@@ -1,0 +1,23 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: g8-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - g8-mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: g8_analytics
+
+  g8-analytics:
+    build: .
+    container_name: g8-analytics-service
+    ports:
+      - "8080:8080"
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/g8_analytics
+    depends_on:
+      - mongodb
+
+volumes:
+  g8-mongo-data:
