@@ -6,7 +6,7 @@ import ma.sgitu.g8.model.SnapshotType;
 import ma.sgitu.g8.model.SourceType;
 import ma.sgitu.g8.model.StatSnapshot;
 import ma.sgitu.g8.repository.EventRepository;
-import ma.sgitu.g8.repository.SnapshotRepository;
+import ma.sgitu.g8.service.SnapshotService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +29,7 @@ public class TicketAggregation {
     private EventRepository eventRepository;
 
     @Autowired
-    private SnapshotRepository snapshotRepository;
+    private SnapshotService snapshotService;
 
     public void compute() {
         computeTotalValidations();
@@ -171,16 +171,16 @@ public class TicketAggregation {
     }
 
     private void save(String statId, String displayId, String granularity, String period, double value, Map<String, Object> data) {
-        snapshotRepository.save(StatSnapshot.builder()
+        StatSnapshot snapshot = StatSnapshot.builder()
                 .snapshotType(SnapshotType.TRIPS)
                 .statId(statId)
                 .granularity(granularity)
                 .period(period)
                 .value(value)
                 .metadata(Map.of("id", displayId, "data", data))
-                .computedAt(LocalDateTime.now())
                 .isPrediction(false)
-                .build());
+                .build();
+        snapshotService.upsert(statId, SnapshotType.TRIPS, snapshot);
     }
 
     private String lineId(IncomingEvent event) {

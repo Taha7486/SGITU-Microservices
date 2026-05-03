@@ -5,7 +5,7 @@ import ma.sgitu.g8.model.SnapshotType;
 import ma.sgitu.g8.model.SourceType;
 import ma.sgitu.g8.model.StatSnapshot;
 import ma.sgitu.g8.repository.EventRepository;
-import ma.sgitu.g8.repository.SnapshotRepository;
+import ma.sgitu.g8.service.SnapshotService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ public class MlPredictionService {
     private EventRepository eventRepository;
 
     @Autowired
-    private SnapshotRepository snapshotRepository;
+    private SnapshotService snapshotService;
 
     @Autowired
     private RestTemplate restTemplate;
@@ -86,7 +86,7 @@ public class MlPredictionService {
             snapshot.setMetadata(response);
             snapshot.setPrediction(true);
 
-            snapshotRepository.save(snapshot);
+            snapshotService.upsert("PRED_01", SnapshotType.PREDICTION, snapshot);
             log.info("PRED_01 (peak hours prediction) saved successfully");
 
         } catch (Exception e) {
@@ -171,7 +171,7 @@ public class MlPredictionService {
             snapshot.setMetadata(response);
             snapshot.setPrediction(true);
 
-            snapshotRepository.save(snapshot);
+            snapshotService.upsert("PRED_02", SnapshotType.PREDICTION, snapshot);
             log.info("PRED_02 (incident zone prediction) saved successfully");
 
         } catch (Exception e) {

@@ -24,7 +24,7 @@ public class AnalyticsService {
     }
 
     public Optional<StatSnapshot> getSnapshotByTypeAndPeriod(SnapshotType type, String period) {
-        return snapshotRepository.findBySnapshotTypeAndPeriod(type, period);
+        return snapshotRepository.findFirstBySnapshotTypeAndPeriodOrderByComputedAtDesc(type, period);
     }
     
     public List<StatSnapshot> getAllSnapshots() {
@@ -37,7 +37,7 @@ public class AnalyticsService {
 
     public Report generateReport(String period, List<SnapshotType> types) {
         List<StatSnapshot> snapshots = types.stream()
-                .map(type -> snapshotRepository.findBySnapshotTypeAndPeriod(type, period))
+                .map(type -> snapshotRepository.findFirstBySnapshotTypeAndPeriodOrderByComputedAtDesc(type, period))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .collect(Collectors.toList());

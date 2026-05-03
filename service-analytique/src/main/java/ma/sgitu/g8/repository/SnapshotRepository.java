@@ -16,4 +16,6 @@ public interface SnapshotRepository extends MongoRepository<StatSnapshot, String
     Optional<StatSnapshot> findFirstByStatIdOrderByComputedAtDesc(String statId);
 
     List<StatSnapshot> findTop30ByStatIdOrderByComputedAtDesc(String statId);
+
+    Optional<StatSnapshot> findByStatId(String statId);
 }
