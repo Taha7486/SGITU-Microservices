@@ -1,0 +1,108 @@
+package ma.sgitu.g5.controller;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import ma.sgitu.g5.dto.request.NotificationRequestDTO;
+import ma.sgitu.g5.dto.response.NotificationResponseDTO;
+import ma.sgitu.g5.entity.Notification;
+import ma.sgitu.g5.repository.NotificationRepository;
+import ma.sgitu.g5.service.INotificationService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/notifications")
+@RequiredArgsConstructor
+@Validated
+@Tag(name = "Notifications", description = "API centrale du microservice G5")
+public class NotificationController {
+
+    private final INotificationService notificationService;
+    private final NotificationRepository notificationRepository;
+
+    @PostMapping("/send")
+    @Operation(summary = "Envoyer une notification")
+    public ResponseEntity<NotificationResponseDTO> send(
+            @Valid @RequestBody NotificationRequestDTO dto) {
+
+        validateChannelAndRecipient(dto);
+        NotificationResponseDTO response = notificationService.send(dto);
+        return ResponseEntity.accepted().body(response);
+    }
+
+    @GetMapping("/{notificationId}")
+    @Operation(summary = "Consulter le statut d'une notification")
+    public ResponseEntity<Notification> getById(
+            @PathVariable String notificationId) {
+        Notification n = notificationRepository.findByNotificationId(notificationId)
+                .orElseThrow(() -> new IllegalArgumentException("Notification introuvable : " + notificationId));
+        return ResponseEntity.ok(n);
+    }
+
+    @GetMapping
+    @Operation(summary = "Lister les notifications")
+    public ResponseEntity<Page<Notification>> list(
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String sourceService,
+            Pageable pageable) {
+        // TODO: filtres dynamiques selon params
+        return ResponseEntity.ok(notificationRepository.findAll(pageable));
+    }
+
+    @PostMapping("/{notificationId}/retry")
+    @Operation(summary = "Relancer une notification en échec")
+    public ResponseEntity<NotificationResponseDTO> retry(
+            @PathVariable String notificationId) {
+        return ResponseEntity.accepted().body(notificationService.retry(notificationId));
+    }
+
+    @GetMapping("/health")
+    @Operation(summary = "Health-check")
+    public ResponseEntity<Map<String, Object>> health() {
+        Map<String, Object> health = new LinkedHashMap<>();
+        health.put("status", "UP");
+        health.put("timestamp", LocalDateTime.now().toString());
+        return ResponseEntity.ok(health);
+    }
+
+    private void validateChannelAndRecipient(NotificationRequestDTO dto) {
+        if (dto.getRecipient() == null) {
+            throw new IllegalArgumentException("recipient est obligatoire");
+        }
+        switch (dto.getChannel()) {
+            case "EMAIL" -> {
+                if (isBlank(dto.getRecipient().getEmail()))
+                    throw new IllegalArgumentException("recipient.email obligatoire pour EMAIL");
+            }
+            case "SMS" -> {
+                if (isBlank(dto.getRecipient().getPhone()))
+                    throw new IllegalArgumentException("recipient.phone obligatoire pour SMS");
+            }
+            case "PUSH" -> {
+                if (isBlank(dto.getRecipient().getDeviceToken()))
+                    throw new IllegalArgumentException("recipient.deviceToken obligatoire pour PUSH");
+            }
+            default -> throw new IllegalArgumentException("Canal non supporté : " + dto.getChannel());
+        }
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+}
