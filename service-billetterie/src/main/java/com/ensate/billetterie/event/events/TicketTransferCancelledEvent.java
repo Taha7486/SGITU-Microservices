@@ -15,8 +15,8 @@ public class TicketTransferCancelledEvent implements BaseEvent {
     @Builder.Default
     private String eventType = "TICKET_TRANSFER_CANCELLED";
     private String ticketId;
-    private String senderId;
-    private String receiverId;
+    private String userId;
+    private String recipientId;
     private Raison raison;
     private Instant timestamp;
 

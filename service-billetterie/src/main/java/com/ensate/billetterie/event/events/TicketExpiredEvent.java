@@ -17,10 +17,10 @@ public class TicketExpiredEvent implements BaseEvent {
     private String ticketId;
     private String userId;
     private String tripId;
-    private Instant expiredAt;
+    private Instant expiresAt;
 
     @Override
     public Instant getTimestamp() {
-        return expiredAt;
+        return expiresAt;
     }
 }

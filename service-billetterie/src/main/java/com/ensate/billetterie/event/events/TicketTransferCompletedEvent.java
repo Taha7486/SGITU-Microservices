@@ -15,8 +15,8 @@ public class TicketTransferCompletedEvent implements BaseEvent {
     @Builder.Default
     private String eventType = "TICKET_TRANSFER_COMPLETED";
     private String ticketId;
-    private String ancienUserId;
-    private String nouveauUserId;
+    private String userId;
+    private String recipientId;
     private String tripId;
     private Instant transferredAt;
 

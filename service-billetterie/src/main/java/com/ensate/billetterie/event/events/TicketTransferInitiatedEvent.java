@@ -15,8 +15,8 @@ public class TicketTransferInitiatedEvent implements BaseEvent {
     @Builder.Default
     private String eventType = "TICKET_TRANSFER_INITIATED";
     private String ticketId;
-    private String senderId;
-    private String receiverId;
+    private String userId;
+    private String recipientId;
     private String tripId;
     private Instant ttlExpiration;
     private Instant initiatedAt;
