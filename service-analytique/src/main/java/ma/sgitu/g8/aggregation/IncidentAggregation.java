@@ -10,15 +10,12 @@ import ma.sgitu.g8.service.SnapshotService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
-import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -84,14 +81,13 @@ public class IncidentAggregation {
         try {
             log.info("Computing INC_04 avg_resolution_time");
             LocalDate today = LocalDate.now();
-            List<IncomingEvent> closedIncidents = events(today.minusDays(6).atStartOfDay(), today.plusDays(1).atStartOfDay()).stream()
-                    .filter(event -> "CLOSED".equals(normalizedPayload(event, "status", "")))
+            // Accept incidents that have a resolutionMinutes field (regardless of status)
+            List<IncomingEvent> resolvedIncidents = events(today.minusDays(6).atStartOfDay(), today.plusDays(1).atStartOfDay()).stream()
+                    .filter(event -> event.getPayload() != null && event.getPayload().get("resolutionMinutes") != null)
                     .toList();
 
-            double averageMinutes = closedIncidents.stream()
-                    .map(this::resolutionMinutes)
-                    .filter(Objects::nonNull)
-                    .mapToDouble(Double::doubleValue)
+            double averageMinutes = resolvedIncidents.stream()
+                    .mapToDouble(event -> resolutionMinutes(event))
                     .average()
                     .orElse(0);
 
@@ -112,7 +108,7 @@ public class IncidentAggregation {
                     .collect(Collectors.groupingBy(this::zoneId, Collectors.counting()))
                     .entrySet()
                     .stream()
-                    .filter(entry -> entry.getValue() >= 3)
+                    .filter(entry -> entry.getValue() >= 2)
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (left, right) -> left, LinkedHashMap::new));
 
             save("INC_REPEAT_ZONES", "INC_05", "MONTH", month.toString(), repeatedZones.size(), new LinkedHashMap<>(repeatedZones));
@@ -138,23 +134,15 @@ public class IncidentAggregation {
         snapshotService.upsert(statId, SnapshotType.INCIDENTS, snapshot);
     }
 
-    private Double resolutionMinutes(IncomingEvent event) {
-        LocalDateTime resolvedAt = parseDateTime(event.getPayload().get("resolvedAt"));
-        LocalDateTime startedAt = event.getTimestamp();
-        if (resolvedAt == null || startedAt == null || resolvedAt.isBefore(startedAt)) {
-            return null;
-        }
-        return (double) Duration.between(startedAt, resolvedAt).toMinutes();
-    }
-
-    private LocalDateTime parseDateTime(Object value) {
-        if (value == null) {
-            return null;
+    private double resolutionMinutes(IncomingEvent event) {
+        Object value = event.getPayload().get("resolutionMinutes");
+        if (value instanceof Number n) {
+            return n.doubleValue();
         }
         try {
-            return LocalDateTime.parse(String.valueOf(value));
-        } catch (DateTimeParseException ex) {
-            return null;
+            return value == null ? 0 : Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException ex) {
+            return 0;
         }
     }
 

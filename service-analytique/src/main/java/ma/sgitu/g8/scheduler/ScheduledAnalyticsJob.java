@@ -5,6 +5,7 @@ import ma.sgitu.g8.aggregation.IncidentAggregation;
 import ma.sgitu.g8.aggregation.RevenueAggregation;
 import ma.sgitu.g8.aggregation.SubscriptionAggregation;
 import ma.sgitu.g8.aggregation.TicketAggregation;
+import ma.sgitu.g8.aggregation.UserAggregation;
 import ma.sgitu.g8.aggregation.VehicleAggregation;
 import ma.sgitu.g8.alert.ThresholdAlertService;
 import ma.sgitu.g8.ml.MlPredictionService;
@@ -32,6 +33,9 @@ public class ScheduledAnalyticsJob {
     private SubscriptionAggregation subscriptionAggregation;
 
     @Autowired
+    private UserAggregation userAggregation;
+
+    @Autowired
     private ThresholdAlertService thresholdAlertService;
 
     @Autowired
@@ -45,6 +49,7 @@ public class ScheduledAnalyticsJob {
         ticketAggregation.compute();
         revenueAggregation.compute();
         subscriptionAggregation.compute();
+        userAggregation.compute();
         thresholdAlertService.detect();
         mlPredictionService.computePeakHoursPrediction();
         mlPredictionService.computeIncidentPrediction();

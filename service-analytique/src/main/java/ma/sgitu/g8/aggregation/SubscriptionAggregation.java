@@ -41,7 +41,8 @@ public class SubscriptionAggregation {
             log.info("Computing SUB_01 active_subscriptions");
             List<IncomingEvent> subscriptions = eventRepository.findBySourceTypeAndProcessedFalse(SourceType.SUBSCRIPTION);
             long active = subscriptions.stream()
-                    .filter(event -> "ACTIVE".equals(action(event)))
+                    .filter(event -> "SUBSCRIPTION_CREATED".equals(event.getEventType())
+                            || "SUBSCRIPTION_RENEWED".equals(event.getEventType()))
                     .count();
 
             save("SUB_ACTIVE", "SUB_01", "REAL_TIME", "now", active,
@@ -56,10 +57,10 @@ public class SubscriptionAggregation {
             log.info("Computing SUB_02 new_subscriptions");
             LocalDate today = LocalDate.now();
             long countDay = subscriptions(today.atStartOfDay(), today.plusDays(1).atStartOfDay()).stream()
-                    .filter(event -> "NEW".equals(action(event)))
+                    .filter(event -> "SUBSCRIPTION_CREATED".equals(event.getEventType()))
                     .count();
             long countWeek = subscriptions(today.minusDays(6).atStartOfDay(), today.plusDays(1).atStartOfDay()).stream()
-                    .filter(event -> "NEW".equals(action(event)))
+                    .filter(event -> "SUBSCRIPTION_CREATED".equals(event.getEventType()))
                     .count();
 
             save("SUB_NEW", "SUB_02", "WEEK", weekPeriod(today), countWeek,
@@ -76,7 +77,7 @@ public class SubscriptionAggregation {
             YearMonth month = YearMonth.from(today);
             List<IncomingEvent> subscriptions = subscriptions(month.atDay(1).atStartOfDay(), month.plusMonths(1).atDay(1).atStartOfDay());
             long renewals = subscriptions.stream()
-                    .filter(event -> "RENEW".equals(action(event)))
+                    .filter(event -> "SUBSCRIPTION_RENEWED".equals(event.getEventType()))
                     .count();
             double rate = subscriptions.isEmpty() ? 0 : renewals * 100.0 / subscriptions.size();
 
@@ -94,7 +95,7 @@ public class SubscriptionAggregation {
             YearMonth month = YearMonth.from(today);
             List<IncomingEvent> subscriptions = subscriptions(month.atDay(1).atStartOfDay(), month.plusMonths(1).atDay(1).atStartOfDay());
             long cancellations = subscriptions.stream()
-                    .filter(event -> "CANCEL".equals(action(event)))
+                    .filter(event -> "SUBSCRIPTION_CANCELLED".equals(event.getEventType()))
                     .count();
             double rate = subscriptions.isEmpty() ? 0 : cancellations * 100.0 / subscriptions.size();
 
@@ -113,7 +114,7 @@ public class SubscriptionAggregation {
             List<IncomingEvent> subscriptions = subscriptions(month.atDay(1).atStartOfDay(), month.plusMonths(1).atDay(1).atStartOfDay());
             Map<String, Long> counts = subscriptions.stream()
                     .collect(Collectors.groupingBy(
-                            event -> payload(event, "subscriptionType", "OTHER").toUpperCase(),
+                            event -> payload(event, "planType", "OTHER").toUpperCase(),
                             LinkedHashMap::new,
                             Collectors.counting()
                     ));

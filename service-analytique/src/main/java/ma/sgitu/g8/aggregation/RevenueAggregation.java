@@ -63,7 +63,7 @@ public class RevenueAggregation {
             Map<String, Double> byType = successfulPayments(month.atDay(1).atStartOfDay(), month.plusMonths(1).atDay(1).atStartOfDay())
                     .stream()
                     .collect(Collectors.groupingBy(
-                            event -> payload(event, "paymentType", "OTHER").toUpperCase(),
+                            event -> payload(event, "method", "OTHER").toUpperCase(),
                             LinkedHashMap::new,
                             Collectors.summingDouble(this::amount)
                     ));
@@ -98,7 +98,7 @@ public class RevenueAggregation {
             List<IncomingEvent> payments = payments(month.atDay(1).atStartOfDay(), month.plusMonths(1).atDay(1).atStartOfDay());
             Map<String, Long> counts = payments.stream()
                     .collect(Collectors.groupingBy(
-                            event -> payload(event, "paymentMethod", "UNKNOWN").toUpperCase(),
+                            event -> payload(event, "method", "UNKNOWN").toUpperCase(),
                             LinkedHashMap::new,
                             Collectors.counting()
                     ));
@@ -145,7 +145,7 @@ public class RevenueAggregation {
 
     private List<IncomingEvent> successfulPayments(LocalDateTime from, LocalDateTime to) {
         return payments(from, to).stream()
-                .filter(event -> "SUCCESS".equals(status(event)))
+                .filter(event -> "PAYMENT_COMPLETED".equals(event.getEventType()))
                 .toList();
     }
 

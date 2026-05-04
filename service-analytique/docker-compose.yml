@@ -1,4 +1,5 @@
 services:
+
   mongodb:
     image: mongo:7.0
     container_name: g8-mongo
@@ -8,6 +9,24 @@ services:
       - g8-mongo-data:/data/db
     environment:
       MONGO_INITDB_DATABASE: g8_analytics
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  ml-service:
+    build: ./ml-service
+    container_name: g8-ml-service
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/docs')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   g8-analytics:
     build: .
@@ -18,14 +37,11 @@ services:
       MONGO_URI: mongodb://mongodb:27017/g8_analytics
       ML_SERVICE_URL: http://ml-service:5000
     depends_on:
-      - mongodb
-      - ml-service
-  
-  ml-service:
-    build: ./ml-service
-    container_name: g8-ml-service
-    ports:
-      - "5000:5000"
+      mongodb:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+    restart: on-failure
 
   mongo-express:
     image: mongo-express
@@ -36,9 +52,10 @@ services:
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb
       ME_CONFIG_MONGODB_PORT: 27017
-      ME_CONFIG_BASICAUTH: false # Disables login page for local dev
+      ME_CONFIG_BASICAUTH: false
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
 
 
 volumes:

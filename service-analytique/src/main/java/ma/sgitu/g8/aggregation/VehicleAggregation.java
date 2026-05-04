@@ -39,7 +39,7 @@ public class VehicleAggregation {
         try {
             log.info("Computing VEH_01 active_vehicles_count");
             List<IncomingEvent> events = eventRepository.findBySourceTypeAndProcessedFalse(SourceType.VEHICLE);
-            long count = events.stream().filter(event -> "ACTIVE".equals(status(event))).count();
+            long count = events.stream().filter(event -> "VEHICLE_IN_SERVICE".equals(event.getEventType())).count();
             save("VEH_ACTIVE_COUNT", "VEH_01", "REAL_TIME", "now", count, Map.of("active_vehicles_count", count));
         } catch (Exception ex) {
             log.error("Failed to compute VEH_01 active_vehicles_count", ex);
@@ -71,7 +71,8 @@ public class VehicleAggregation {
             log.info("Computing VEH_03 delay_distribution");
             LocalDate today = LocalDate.now();
             Map<String, Long> distribution = events(today.atStartOfDay(), today.plusDays(1).atStartOfDay()).stream()
-                    .filter(event -> "DELAYED".equals(status(event)))
+                    .filter(event -> "VEHICLE_IN_SERVICE".equals(event.getEventType()))
+                    .filter(event -> number(event.getPayload().get("delayMinutes")) > 0)
                     .collect(Collectors.groupingBy(this::delayBucket, LinkedHashMap::new, Collectors.counting()));
 
             Map<String, Object> data = new LinkedHashMap<>(distribution);
@@ -87,7 +88,7 @@ public class VehicleAggregation {
             LocalDate today = LocalDate.now();
             List<IncomingEvent> events = events(today.atStartOfDay(), today.plusDays(1).atStartOfDay());
             long total = events.size();
-            long active = events.stream().filter(event -> "ACTIVE".equals(status(event))).count();
+            long active = events.stream().filter(event -> "VEHICLE_IN_SERVICE".equals(event.getEventType())).count();
             double rate = total == 0 ? 0 : active * 100.0 / total;
             save("VEH_UTILIZATION", "VEH_04", "DAY", today.toString(), rate,
                     Map.of("vehicle_utilization_rate", rate, "active", active, "total", total));
@@ -104,7 +105,7 @@ public class VehicleAggregation {
             Map<String, Double> avgByLine = events.stream()
                     .collect(Collectors.groupingBy(this::lineId,
                             LinkedHashMap::new,
-                            Collectors.averagingDouble(event -> number(event.getPayload().get("avgSpeed")))));
+                            Collectors.averagingDouble(event -> number(event.getPayload().get("speed")))));
 
             Map<String, Object> data = new LinkedHashMap<>(avgByLine);
             save("VEH_AVG_SPEED", "VEH_05", "WEEK", today.minusDays(6) + "/" + today,
@@ -122,8 +123,15 @@ public class VehicleAggregation {
         if (events.isEmpty()) {
             return 0;
         }
-        long onTime = events.stream().filter(event -> "ON_TIME".equals(status(event))).count();
-        return onTime * 100.0 / events.size();
+        // On-time = in_service with delayMinutes == 0 or absent
+        long onTime = events.stream()
+                .filter(event -> "VEHICLE_IN_SERVICE".equals(event.getEventType()))
+                .filter(event -> number(event.getPayload().get("delayMinutes")) == 0)
+                .count();
+        long inService = events.stream()
+                .filter(event -> "VEHICLE_IN_SERVICE".equals(event.getEventType()))
+                .count();
+        return inService == 0 ? 0 : onTime * 100.0 / inService;
     }
 
     private String delayBucket(IncomingEvent event) {

@@ -36,10 +36,10 @@ public class AnalyticsService {
     }
 
     public Report generateReport(String period, List<SnapshotType> types) {
+        // Collect ALL current snapshots for each requested type (all granularities)
         List<StatSnapshot> snapshots = types.stream()
-                .map(type -> snapshotRepository.findFirstBySnapshotTypeAndPeriodOrderByComputedAtDesc(type, period))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .flatMap(type -> snapshotRepository.findBySnapshotType(type).stream())
+                .filter(s -> !s.isPrediction())
                 .collect(Collectors.toList());
 
         Report report = Report.builder()

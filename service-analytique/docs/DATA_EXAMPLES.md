@@ -33,31 +33,25 @@ This document serves as the comprehensive reference for all data structures flow
 ```json
 [
   {
+    "timestamp": "2026-05-03T08:30:00Z",
     "userId": "USR-98765",
     "status": "validated",
     "line": "L1",
-    "zone": "Z_CENTER",
-    "timestamp": "2026-05-03T08:30:00Z",
-    "ticketId": "TCK-98765",
-    "scanType": "NFC"
+    "stationId": "ST-05"
   },
   {
+    "timestamp": "2026-05-03T08:31:12Z",
     "userId": "USR-11223",
     "status": "expired",
     "line": "L1",
-    "zone": "Z_CENTER",
-    "timestamp": "2026-05-03T08:31:12Z",
-    "ticketId": "TCK-UNKNOWN",
-    "reason": "EXPIRED"
+    "stationId": "ST-05"
   },
   {
+    "timestamp": "2026-05-03T08:35:00Z",
     "userId": "USR-55443",
     "status": "validated",
     "line": "L2",
-    "zone": "Z_NORTH",
-    "timestamp": "2026-05-03T08:35:00Z",
-    "ticketId": "TCK-11223",
-    "scanType": "QR"
+    "stationId": "ST-10"
   }
 ]
 ```
@@ -67,23 +61,22 @@ This document serves as the comprehensive reference for all data structures flow
 ```json
 [
   {
+    "timestamp": "2026-05-03T09:00:00Z",
     "userId": "USR-456",
     "action": "created",
-    "planType": "MONTHLY_STUDENT",
-    "timestamp": "2026-05-03T09:00:00Z"
+    "planType": "MONTHLY_STUDENT"
   },
   {
+    "timestamp": "2026-05-03T09:15:00Z",
     "userId": "USR-789",
     "action": "renewed",
-    "planType": "YEARLY_STANDARD",
-    "timestamp": "2026-05-03T09:15:00Z"
+    "planType": "YEARLY_STANDARD"
   },
   {
+    "timestamp": "2026-05-03T09:20:00Z",
     "userId": "USR-101",
     "action": "cancelled",
-    "planType": "MONTHLY_STANDARD",
-    "reason": "PAYMENT_FAILED",
-    "timestamp": "2026-05-03T09:20:00Z"
+    "planType": "MONTHLY_STANDARD"
   }
 ]
 ```
@@ -93,25 +86,23 @@ This document serves as the comprehensive reference for all data structures flow
 ```json
 [
   {
+    "timestamp": "2026-05-03T10:05:00Z",
     "transactionId": "TXN-001",
     "status": "completed",
-    "line": "L3",
-    "timestamp": "2026-05-03T10:05:00Z",
     "amount": 25.50,
     "method": "CARD"
   },
   {
+    "timestamp": "2026-05-03T10:10:00Z",
     "transactionId": "TXN-002",
     "status": "completed",
-    "zone": "Z_SOUTH",
-    "timestamp": "2026-05-03T10:10:00Z",
     "amount": 10.00,
     "method": "CASH"
   },
   {
+    "timestamp": "2026-05-03T10:15:00Z",
     "transactionId": "TXN-003",
     "status": "failed",
-    "timestamp": "2026-05-03T10:15:00Z",
     "amount": 15.00,
     "method": "CARD"
   }
@@ -123,32 +114,25 @@ This document serves as the comprehensive reference for all data structures flow
 ```json
 [
   {
+    "timestamp": "2026-05-03T11:00:00Z",
     "vehicleId": "BUS_404",
     "status": "in_service",
     "line": "L1",
-    "zone": "Z_CENTER",
-    "timestamp": "2026-05-03T11:00:00Z",
-    "speed": 45.2,
-    "occupancy": 85,
-    "delayMinutes": 2
+    "delayMinutes": 2,
+    "speed": 45.2
   },
   {
-    "vehicleId": "TRAM_05",
-    "status": "out_of_service",
-    "line": "T1",
     "timestamp": "2026-05-03T11:05:00Z",
-    "speed": 0.0,
-    "alertCode": "ENG_TEMP_HIGH"
+    "vehicleId": "TRAM_05",
+    "status": "out_of_service"
   },
   {
+    "timestamp": "2026-05-03T11:10:00Z",
     "vehicleId": "BUS_112",
     "status": "in_service",
     "line": "L4",
-    "zone": "Z_WEST",
-    "timestamp": "2026-05-03T11:10:00Z",
-    "speed": 30.5,
-    "occupancy": 110,
-    "delayMinutes": 5
+    "delayMinutes": 5,
+    "speed": 30.5
   }
 ]
 ```
@@ -158,31 +142,25 @@ This document serves as the comprehensive reference for all data structures flow
 ```json
 [
   {
+    "timestamp": "2026-05-03T12:00:00Z",
     "incidentId": "INC-1001",
     "type": "accident",
-    "line": "L2",
     "zone": "Z_NORTH",
-    "timestamp": "2026-05-03T12:00:00Z",
-    "severity": "HIGH",
-    "description": "Traffic accident blocking bus lane"
-  },
-  {
-    "incidentId": "INC-0998",
-    "type": "delay",
-    "line": "L1",
-    "zone": "Z_CENTER",
-    "timestamp": "2026-05-03T12:45:00Z",
-    "severity": "MEDIUM",
     "resolutionMinutes": 45
   },
   {
+    "timestamp": "2026-05-03T12:45:00Z",
+    "incidentId": "INC-0998",
+    "type": "delay",
+    "zone": "Z_CENTER",
+    "resolutionMinutes": 15
+  },
+  {
+    "timestamp": "2026-05-03T13:00:00Z",
     "incidentId": "INC-1002",
     "type": "breakdown",
-    "line": "T2",
     "zone": "Z_EAST",
-    "timestamp": "2026-05-03T13:00:00Z",
-    "severity": "CRITICAL",
-    "description": "Power failure on tram line"
+    "resolutionMinutes": 120
   }
 ]
 ```
@@ -192,23 +170,22 @@ This document serves as the comprehensive reference for all data structures flow
 ```json
 [
   {
-    "userId": "USR-111",
-    "action": "active",
     "timestamp": "2026-05-03T14:00:00Z",
-    "deviceOS": "iOS"
-  },
-  {
     "userId": "USR-111",
     "action": "active",
-    "timestamp": "2026-05-03T14:05:00Z",
-    "from": "Z_NORTH",
-    "to": "Z_CENTER"
+    "deviceOS": "IOS"
   },
   {
+    "timestamp": "2026-05-03T14:05:00Z",
+    "userId": "USR-112",
+    "action": "active",
+    "deviceOS": "ANDROID"
+  },
+  {
+    "timestamp": "2026-05-03T14:10:00Z",
     "userId": "USR-222",
     "action": "inactive",
-    "timestamp": "2026-05-03T14:10:00Z",
-    "fieldsUpdated": ["email", "phone"]
+    "deviceOS": "WEB"
   }
 ]
 ```
