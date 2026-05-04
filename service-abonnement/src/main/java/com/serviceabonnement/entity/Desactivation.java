@@ -1,16 +1,15 @@
 package com.serviceabonnement.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "desactivations")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -20,14 +19,17 @@ public class Desactivation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "abonnement_id", nullable = false)
     private Abonnement abonnement;
 
-    @Column(nullable = false)
-    private LocalDateTime dateDesactivation;
+    @Column(name = "date_debut_desactivation", nullable = false)
+    private LocalDateTime dateDebutDesactivation;
 
-    private String motif;
+    @Column(name = "date_fin_desactivation")
+    private LocalDateTime dateFinDesactivation;
 
-    private String commentaire;
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 }

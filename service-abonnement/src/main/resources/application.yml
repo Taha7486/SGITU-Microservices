@@ -4,13 +4,13 @@ server:
 spring:
   application:
     name: service-abonnement
-  
+
   datasource:
-    url: jdbc:mysql://localhost:3306/abonnement_db?createDatabaseIfNotExist=true
-    username: abonnement_user
-    password: abonnement_pass
+    url: jdbc:mysql://localhost:3306/${DB_NAME}?createDatabaseIfNotExist=true
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
-  
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -23,6 +23,18 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: abonnement-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
 
 management:
   endpoints:
@@ -37,7 +49,14 @@ application:
   config:
     utilisateur-service-url: http://localhost:8081
     paiement-service-url: http://localhost:8083
-    notification-service-url: http://localhost:8084
+  topics:
+    souscription: abonnement.souscription
+    rappel: abonnement.rappel
+    renouvellement: abonnement.renouvellement
+    annulation: abonnement.annulation
+    suspension: abonnement.suspension
+    desactivation: abonnement.desactivation
+    modification: abonnement.modification
 
 springdoc:
   swagger-ui:

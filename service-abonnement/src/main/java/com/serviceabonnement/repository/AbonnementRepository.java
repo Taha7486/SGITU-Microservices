@@ -8,5 +8,7 @@ import java.util.List;
 
 @Repository
 public interface AbonnementRepository extends JpaRepository<Abonnement, Long> {
-    List<Abonnement> findByUtilisateurId(Long utilisateurId);
+    List<Abonnement> findByUserId(Long userId);
+    java.util.Optional<Abonnement> findByPaiementId(String paiementId);
+    java.util.Optional<Abonnement> findByRemboursementId(String remboursementId);
 }

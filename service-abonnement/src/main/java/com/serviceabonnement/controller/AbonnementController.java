@@ -12,30 +12,43 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/abonnements")
+@RequestMapping("/abonnements")
 @RequiredArgsConstructor
 public class AbonnementController {
 
     private final AbonnementService abonnementService;
 
     @PostMapping("/souscrire")
-    public ResponseEntity<AbonnementResponseDTO> souscrire(@Valid @RequestBody SouscriptionRequestDTO request) {
-        return new ResponseEntity<>(abonnementService.souscrire(request), HttpStatus.CREATED);
+    public ResponseEntity<com.serviceabonnement.entity.Abonnement> souscrire(
+            @RequestParam Long userId, 
+            @RequestParam Long planId) {
+        return new ResponseEntity<>(abonnementService.souscrire(userId, planId), HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<AbonnementResponseDTO> getAbonnement(@PathVariable Long id) {
+    public ResponseEntity<com.serviceabonnement.entity.Abonnement> getAbonnement(@PathVariable Long id) {
         return ResponseEntity.ok(abonnementService.getAbonnementById(id));
     }
 
-    @GetMapping("/utilisateur/{utilisateurId}")
-    public ResponseEntity<List<AbonnementResponseDTO>> getAbonnementsByUtilisateur(@PathVariable Long utilisateurId) {
-        return ResponseEntity.ok(abonnementService.getAbonnementsByUtilisateur(utilisateurId));
+    @GetMapping("/utilisateur/{userId}")
+    public ResponseEntity<List<com.serviceabonnement.entity.Abonnement>> getAbonnementsByUtilisateur(@PathVariable Long userId) {
+        return ResponseEntity.ok(abonnementService.getAbonnementsByUtilisateur(userId));
     }
 
-    @DeleteMapping("/{id}/resilier")
-    public ResponseEntity<Void> resilier(@PathVariable Long id) {
-        abonnementService.resilier(id);
-        return ResponseEntity.noContent().build();
+    @GetMapping("/utilisateur/{userId}/actif")
+    public ResponseEntity<com.serviceabonnement.entity.Abonnement> getActif(@PathVariable Long userId) {
+        return ResponseEntity.ok(abonnementService.getActif(userId));
+    }
+
+    @PostMapping("/{id}/annuler")
+    public ResponseEntity<Void> demanderAnnulation(@PathVariable Long id) {
+        abonnementService.demanderAnnulation(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/desactiver")
+    public ResponseEntity<Void> desactiver(@PathVariable Long id, @RequestParam int jours) {
+        abonnementService.desactiver(id, jours);
+        return ResponseEntity.ok().build();
     }
 }
