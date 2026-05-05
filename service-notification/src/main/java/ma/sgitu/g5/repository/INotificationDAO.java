@@ -1,13 +1,12 @@
 package ma.sgitu.g5.repository;
 
 import ma.sgitu.g5.entity.Notification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
 import java.util.Optional;
+import java.util.List;
 
-@Repository
-public interface NotificationRepository extends JpaRepository<Notification, Long> {
+public interface INotificationDAO {
+    Notification save(Notification notification);
     Optional<Notification> findByNotificationId(String notificationId);
+    List<Notification> findAll();
     boolean existsByNotificationId(String notificationId);
 }
