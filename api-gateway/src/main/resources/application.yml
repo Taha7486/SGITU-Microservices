@@ -1,38 +1,112 @@
-server.port=8080
-spring.application.name=api_gateway
+server:
+  port: 8080
 
-# ??? Base de données MySQL ???????????????????????????????
-spring.datasource.url=jdbc:mysql://localhost:3306/gateway_db
-spring.datasource.username=root
-spring.datasource.password=
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring:
+  application:
+    name: api-gateway
 
-# ??? JPA / Hibernate ?????????????????????????????????????
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.format_sql=true
+  datasource:
+    url: jdbc:mysql://localhost:3306/gateway_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: root
+    password: ""
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
-# ??? IMPORTANT : désactiver le routage Gateway pour les
-#     endpoints /auth/** (traités par le controller local) ??
-spring.cloud.gateway.enabled=true
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
 
-# Routes vers les microservices (à adapter avec les vrais ports)
-spring.cloud.gateway.routes[0].id=billetterie
-spring.cloud.gateway.routes[0].uri=http://billetterie-service:8081
-spring.cloud.gateway.routes[0].predicates[0]=Path=/api/tickets/**
+  cloud:
+    gateway:
+      enabled: true
+      handler-mapping:
+        order: -1
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+      routes:
+        - id: g1-billetterie
+          uri: http://service-billetterie:8081
+          predicates:
+            - Path=/api/tickets/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /$\{segment}
 
-spring.cloud.gateway.routes[1].id=paiement
-spring.cloud.gateway.routes[1].uri=http://paiement-service:8082
-spring.cloud.gateway.routes[1].predicates[0]=Path=/api/paiement/**
+        - id: g2-abonnements
+          uri: http://service-abonnement:8082
+          predicates:
+            - Path=/api/abonnements/**,/api/plans/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /$\{segment}
 
-spring.cloud.gateway.routes[2].id=notifications
-spring.cloud.gateway.routes[2].uri=http://notification-service:8083
-spring.cloud.gateway.routes[2].predicates[0]=Path=/api/notify/**
+        - id: g3-utilisateurs
+          uri: http://user-service:8083
+          predicates:
+            - Path=/api/users/**,/api/profiles/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /$\{segment}
 
-# ??? JWT ?????????????????????????????????????????????????
-jwt.secret=G10_SECRET_KEY_SGITU_2025_SUPER_SECURE_KEY_32CHARS
-jwt.expiration=3600000
-jwt.refresh-expiration=604800000
+        - id: g4-coordination
+          uri: http://coordination-service:8084
+          predicates:
+            - Path=/api/coordination/**,/api/routes/**,/api/schedules/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /$\{segment}
 
-# ??? Actuator ????????????????????????????????????????????
-management.endpoints.web.exposure.include=health,info
+        - id: g5-notifications
+          uri: http://notification-service:8085
+          predicates:
+            - Path=/api/notifications/**,/api/notify/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /$\{segment}
+
+        - id: g6-paiement
+          uri: http://payment-service:8086
+          predicates:
+            - Path=/api/payments/**,/api/payment-accounts/**,/api/invoices/**,/api/paiement/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /$\{segment}
+
+        - id: g7-suivi-vehicules
+          uri: http://g7-suivi-vehicules:8087
+          predicates:
+            - Path=/api/vehicles/**,/api/vehicules/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /$\{segment}
+
+        - id: g8-analytics
+          uri: http://analytics-service:8088
+          predicates:
+            - Path=/api/analytics/**,/api/reports/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /$\{segment}
+
+        - id: g9-incidents
+          uri: http://service-gestion-incidents:8089
+          predicates:
+            - Path=/api/incidents/**,/api/rapports/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /$\{segment}
+
+jwt:
+  secret: G10_SECRET_KEY_SGITU_2025_SUPER_SECURE_KEY_32CHARS
+  expiration: 3600000
+  refresh-expiration: 604800000
+
+g10:
+  public-base-url: http://localhost:8080
+  email:
+    verification-expiration-minutes: 1440
+    password-reset-expiration-minutes: 15
+    log-tokens: true
+  notifications:
+    enabled: true
+    email-url: http://notification-service:8085/api/notifications/email
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

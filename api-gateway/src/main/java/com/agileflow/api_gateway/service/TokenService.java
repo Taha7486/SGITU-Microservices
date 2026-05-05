@@ -17,30 +17,19 @@ public class TokenService {
     private final TokenRepository tokenRepository;
 
     @Value("${jwt.refresh-expiration}")
-    private long refreshExpiration; // en millisecondes
-
-    // ────────────────────────────────────────────────
-    //  Sauvegarde d'un nouveau refresh token
-    // ────────────────────────────────────────────────
+    private long refreshExpiration;
 
     public Token saveToken(User user, String refreshToken) {
-        // Révoquer les anciens tokens de cet utilisateur
         revokeAllUserTokens(user);
 
         Token token = new Token();
         token.setUser(user);
         token.setRefreshToken(refreshToken);
-        token.setRefreshTokenExpiry(
-                LocalDateTime.now().plusSeconds(refreshExpiration / 1000)
-        );
+        token.setRefreshTokenExpiry(LocalDateTime.now().plusSeconds(refreshExpiration / 1000));
         token.setRevoked(false);
 
         return tokenRepository.save(token);
     }
-
-    // ────────────────────────────────────────────────
-    //  Révocation
-    // ────────────────────────────────────────────────
 
     public void revokeToken(String refreshToken) {
         tokenRepository.findByRefreshToken(refreshToken).ifPresent(token -> {
@@ -55,10 +44,6 @@ public class TokenService {
             tokenRepository.save(token);
         });
     }
-
-    // ────────────────────────────────────────────────
-    //  Recherche & validation
-    // ────────────────────────────────────────────────
 
     public Optional<Token> findByRefreshToken(String refreshToken) {
         return tokenRepository.findByRefreshToken(refreshToken);

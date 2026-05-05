@@ -1,5 +1,6 @@
 package com.agileflow.api_gateway.filter;
 
+import com.agileflow.api_gateway.error.ApiErrorWriter;
 import com.agileflow.api_gateway.service.JwtService;
 import com.agileflow.api_gateway.service.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -20,10 +21,10 @@ public class JwtAuthFilter implements WebFilter {
 
     private final JwtService jwtService;
     private final UserDetailsServiceImpl userDetailsService;
+    private final ApiErrorWriter errorWriter;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-
         String token = extractToken(exchange);
 
         if (token == null) {
@@ -43,27 +44,37 @@ public class JwtAuthFilter implements WebFilter {
                                     null,
                                     userDetails.getAuthorities()
                             );
+
                     return chain.filter(exchange)
                             .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
                 }
             }
-        } catch (Exception e) {
-            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+        } catch (Exception ignored) {
+            return errorWriter.write(
+                    exchange,
+                    HttpStatus.UNAUTHORIZED,
+                    "INVALID_TOKEN",
+                    "JWT invalide ou expire"
+            );
         }
 
-        return chain.filter(exchange);
+        return errorWriter.write(
+                exchange,
+                HttpStatus.UNAUTHORIZED,
+                "INVALID_TOKEN",
+                "JWT invalide ou expire"
+        );
     }
 
-    // ────────────────────────────────────────────────
-    //  Extraction du Bearer token
-    // ────────────────────────────────────────────────
     public String extractToken(ServerWebExchange exchange) {
         String authHeader = exchange.getRequest()
                 .getHeaders()
                 .getFirst(HttpHeaders.AUTHORIZATION);
+
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return authHeader.substring(7);
         }
+
         return null;
     }
 }

@@ -31,7 +31,9 @@ public class JwtService {
     // ────────────────────────────────────────────────
 
     public String generateAccessToken(UserDetails userDetails) {
-        return buildToken(new HashMap<>(), userDetails, jwtExpiration);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", extractPrimaryRole(userDetails));
+        return buildToken(claims, userDetails, jwtExpiration);
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
@@ -56,7 +58,9 @@ public class JwtService {
 
     public boolean validateToken(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        return username.equals(userDetails.getUsername())
+                && !isTokenExpired(token)
+                && userDetails.isEnabled();
     }
 
     public boolean isTokenExpired(String token) {
@@ -75,6 +79,10 @@ public class JwtService {
         return extractClaim(token, Claims::getExpiration);
     }
 
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         return claimsResolver.apply(extractAllClaims(token));
     }
@@ -90,5 +98,13 @@ public class JwtService {
     private Key getSignKey() {
         byte[] keyBytes = secretKey.getBytes();
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private String extractPrimaryRole(UserDetails userDetails) {
+        return userDetails.getAuthorities()
+                .stream()
+                .findFirst()
+                .map(Object::toString)
+                .orElse("ROLE_USER");
     }
 }

@@ -2,6 +2,7 @@ package com.agileflow.api_gateway.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -16,20 +17,25 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @Entity
-@Table(name = "tokens")
-public class Token {
+@Table(name = "email_verification_tokens")
+public class EmailVerificationToken {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true)
-    private String refreshToken;
+    @Column(nullable = false, unique = true, length = 128)
+    private String tokenHash;
 
-    private LocalDateTime refreshTokenExpiry;
-    private boolean revoked = false;
+    @Column(nullable = false)
+    private LocalDateTime expiresAt;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
+    private LocalDateTime usedAt;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 }

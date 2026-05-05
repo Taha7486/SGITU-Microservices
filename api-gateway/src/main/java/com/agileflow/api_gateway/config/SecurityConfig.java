@@ -1,10 +1,12 @@
 package com.agileflow.api_gateway.config;
 
+import com.agileflow.api_gateway.error.ApiErrorWriter;
 import com.agileflow.api_gateway.filter.JwtAuthFilter;
 import com.agileflow.api_gateway.service.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
@@ -23,35 +25,51 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final UserDetailsServiceImpl userDetailsService;
-
-    // ────────────────────────────────────────────────
-    //  Chaîne de filtres WebFlux
-    // ────────────────────────────────────────────────
+    private final ApiErrorWriter errorWriter;
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .exceptionHandling(exceptionHandling -> exceptionHandling
+                        .authenticationEntryPoint((exchange, ex) -> errorWriter.write(
+                                exchange,
+                                HttpStatus.UNAUTHORIZED,
+                                "UNAUTHORIZED",
+                                "Authentification requise ou token invalide"
+                        ))
+                        .accessDeniedHandler((exchange, ex) -> errorWriter.write(
+                                exchange,
+                                HttpStatus.FORBIDDEN,
+                                "FORBIDDEN",
+                                "Acces refuse pour ce role"
+                        ))
+                )
                 .authorizeExchange(exchanges -> exchanges
-                        // Routes publiques
                         .pathMatchers(
                                 "/auth/login",
                                 "/auth/register",
                                 "/auth/refresh",
+                                "/auth/verify-email",
+                                "/auth/forgot-password",
+                                "/auth/reset-password",
                                 "/actuator/**"
                         ).permitAll()
-                        // Toutes les routes /api/** nécessitent un JWT valide
+                        .pathMatchers(
+                                "/api/users/*/roles",
+                                "/api/users/*/deactivate",
+                                "/api/abonnements/admin/**"
+                        ).hasAuthority("ROLE_ADMIN")
+                        .pathMatchers(
+                                "/api/analytics/**",
+                                "/api/reports/**"
+                        ).hasAnyAuthority("ROLE_ADMIN", "ROLE_AGENT")
                         .pathMatchers("/api/**").authenticated()
                         .anyExchange().authenticated()
                 )
-                // Ajouter le filtre JWT
                 .addFilterAt(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .build();
     }
-
-    // ────────────────────────────────────────────────
-    //  Beans utilitaires
-    // ────────────────────────────────────────────────
 
     @Bean
     public ReactiveAuthenticationManager reactiveAuthenticationManager() {
