@@ -45,6 +45,15 @@ public class Notification {
     @Column(nullable = true, length = 255)
     private String recipient;
 
+    @Column(length = 255)
+    private String email;
+
+    @Column(length = 50)
+    private String phone;
+
+    @Column(name = "device_token", length = 255)
+    private String deviceToken;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private NotificationStatus status;
