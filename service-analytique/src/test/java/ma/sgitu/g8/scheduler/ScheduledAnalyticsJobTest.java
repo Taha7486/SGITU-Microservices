@@ -6,7 +6,6 @@ import ma.sgitu.g8.model.SourceType;
 import ma.sgitu.g8.model.StatSnapshot;
 import ma.sgitu.g8.repository.EventRepository;
 import ma.sgitu.g8.repository.SnapshotRepository;
-import ma.sgitu.g8.repository.StatSnapshotRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,18 +39,13 @@ class ScheduledAnalyticsJobTest {
     @Autowired
     private EventRepository eventRepository;
 
-    /** SnapshotRepository (used by aggregations to save). */
     @Autowired
     private SnapshotRepository snapshotRepository;
-
-    /** StatSnapshotRepository (maps to the same collection, used for reads). */
-    @Autowired
-    private StatSnapshotRepository statSnapshotRepository;
 
     @BeforeEach
     void cleanDb() {
         eventRepository.deleteAll();
-        statSnapshotRepository.deleteAll();
+        snapshotRepository.deleteAll();
     }
 
     // -------------------------------------------------------------------------
@@ -141,7 +135,7 @@ class ScheduledAnalyticsJobTest {
         scheduledAnalyticsJob.runAnalytics();
 
         // ---- assert at least one snapshot was written ----
-        List<StatSnapshot> snapshots = statSnapshotRepository.findAll();
+        List<StatSnapshot> snapshots = snapshotRepository.findAll();
         assertThat(snapshots).isNotEmpty();
     }
 
@@ -167,7 +161,7 @@ class ScheduledAnalyticsJobTest {
 
         scheduledAnalyticsJob.runAnalytics();
 
-        List<StatSnapshot> snapshots = statSnapshotRepository.findAll();
+        List<StatSnapshot> snapshots = snapshotRepository.findAll();
         assertThat(snapshots).isNotEmpty();
 
         for (StatSnapshot snapshot : snapshots) {
@@ -205,7 +199,7 @@ class ScheduledAnalyticsJobTest {
         scheduledAnalyticsJob.runAnalytics();
         scheduledAnalyticsJob.runAnalytics();
 
-        List<StatSnapshot> snapshots = statSnapshotRepository.findAll();
+        List<StatSnapshot> snapshots = snapshotRepository.findAll();
         assertThat(snapshots).isNotEmpty();
 
         Map<String, List<StatSnapshot>> groupedByStatId = new HashMap<>();

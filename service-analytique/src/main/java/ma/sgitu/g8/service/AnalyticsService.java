@@ -4,7 +4,7 @@ import ma.sgitu.g8.model.Report;
 import ma.sgitu.g8.model.SnapshotType;
 import ma.sgitu.g8.model.StatSnapshot;
 import ma.sgitu.g8.repository.ReportRepository;
-import ma.sgitu.g8.repository.StatSnapshotRepository;
+import ma.sgitu.g8.repository.SnapshotRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -15,10 +15,10 @@ import java.util.stream.Collectors;
 @Service
 public class AnalyticsService {
 
-    private final StatSnapshotRepository snapshotRepository;
+    private final SnapshotRepository snapshotRepository;
     private final ReportRepository reportRepository;
 
-    public AnalyticsService(StatSnapshotRepository snapshotRepository, ReportRepository reportRepository) {
+    public AnalyticsService(SnapshotRepository snapshotRepository, ReportRepository reportRepository) {
         this.snapshotRepository = snapshotRepository;
         this.reportRepository = reportRepository;
     }

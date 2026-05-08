@@ -3,7 +3,7 @@ package ma.sgitu.g8.ml;
 import ma.sgitu.g8.model.IncomingEvent;
 import ma.sgitu.g8.model.SourceType;
 import ma.sgitu.g8.repository.EventRepository;
-import ma.sgitu.g8.repository.StatSnapshotRepository;
+import ma.sgitu.g8.repository.SnapshotRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,7 +43,7 @@ class MlPredictionServiceTest {
     private EventRepository eventRepository;
 
     @Autowired
-    private StatSnapshotRepository statSnapshotRepository;
+    private SnapshotRepository snapshotRepository;
 
     /**
      * Declared as @MockBean so Spring replaces the real RestTemplate bean in the
@@ -56,7 +56,7 @@ class MlPredictionServiceTest {
     @BeforeEach
     void cleanDb() {
         eventRepository.deleteAll();
-        statSnapshotRepository.deleteAll();
+        snapshotRepository.deleteAll();
     }
 
     // -------------------------------------------------------------------------

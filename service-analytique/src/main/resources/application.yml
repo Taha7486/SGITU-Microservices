@@ -8,6 +8,16 @@ spring:
     mongodb:
       uri: ${MONGO_URI:mongodb://localhost:27017/g8_analytics}
       database: g8_analytics
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: g8-analytics-consumer
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      enable-auto-commit: true
+    listener:
+      auto-startup: ${KAFKA_LISTENER_AUTO_START:false}
 
 logging:
   level:
@@ -19,3 +29,8 @@ g5:
 ml:
   service:
     url: ${ML_SERVICE_URL:http://localhost:5000}
+
+kafka:
+  topics:
+    vehicule: g8.vehicule.status
+    incident: incident.analytique.topic

@@ -1,0 +1,10 @@
+target/
+.git/
+.idea/
+*.iml
+docs/
+ml-service/
+docker-compose.yml
+README.md
+.gitignore
+.gitattributes

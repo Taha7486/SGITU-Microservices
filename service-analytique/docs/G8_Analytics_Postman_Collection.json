@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "g8-analytics-collection",
     "name": "G8 Analytics Service",
-    "description": "Full test suite for the G8 Analytics Service. Run requests in order:\n1. Ingest data (01-06)\n2. Wait ~60 seconds for the scheduler\n3. Read analytics (07-13)\n4. Generate and fetch a report (14-15)",
+    "description": "Full test suite for the G8 Analytics Service. Run requests in order:\n1. Ingest data (01-06)\n2. Wait ~60 seconds for the scheduler\n3. Read analytics (07-14)\n4. Generate and fetch a report (15-16)\n5. Error/edge cases (17-19)\n6. Kafka mock tests (20-23) — simulate G7 vehicle and G9 incident Kafka messages without a broker",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -10,9 +10,18 @@
       "listen": "prerequest",
       "script": {
         "exec": [
-          "// Auto-set today's date (YYYY-MM-DD) for report period",
+          "// Auto-generate yesterday's timestamps for Phase 1 ingestion payloads",
+          "var d = new Date();",
+          "d.setDate(d.getDate() - 1);",
+          "var yyyy = d.getFullYear();",
+          "var mm = String(d.getMonth()+1).padStart(2,'0');",
+          "var dd = String(d.getDate()).padStart(2,'0');",
+          "var yesterday = yyyy+'-'+mm+'-'+dd;",
           "var today = new Date().toISOString().split('T')[0];",
-          "pm.collectionVariables.set('today', today);"
+          "pm.collectionVariables.set('today', today);",
+          "// Generate ISO timestamps at various hours yesterday (always in the past)",
+          "var hours = ['08:00','08:05','08:10','08:30','08:45','09:00','09:15','10:00','10:15','11:00','12:00','13:00','14:00','15:30','17:00','17:10','17:30','17:50','18:05'];",
+          "hours.forEach(function(h){ pm.collectionVariables.set('t_'+h.replace(':',''), yesterday+'T'+h+':00Z'); });"
         ],
         "type": "text/javascript"
       }
@@ -58,7 +67,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "[\n  {\n    \"userId\": \"USR-001\",\n    \"status\": \"validated\",\n    \"line\": \"L1\",\n    \"stationId\": \"ST-05\",\n    \"timestamp\": \"2026-05-04T08:30:00Z\",\n    \"ticketId\": \"TCK-001\",\n    \"scanType\": \"NFC\"\n  },\n  {\n    \"userId\": \"USR-002\",\n    \"status\": \"validated\",\n    \"line\": \"L1\",\n    \"stationId\": \"ST-05\",\n    \"timestamp\": \"2026-05-04T08:45:00Z\",\n    \"ticketId\": \"TCK-002\",\n    \"scanType\": \"QR\"\n  },\n  {\n    \"userId\": \"USR-003\",\n    \"status\": \"expired\",\n    \"line\": \"L2\",\n    \"stationId\": \"ST-10\",\n    \"timestamp\": \"2026-05-04T09:00:00Z\",\n    \"ticketId\": \"TCK-003\"\n  },\n  {\n    \"userId\": \"USR-004\",\n    \"status\": \"validated\",\n    \"line\": \"L2\",\n    \"stationId\": \"ST-10\",\n    \"timestamp\": \"2026-05-04T17:10:00Z\",\n    \"ticketId\": \"TCK-004\",\n    \"scanType\": \"NFC\"\n  },\n  {\n    \"userId\": \"USR-005\",\n    \"status\": \"validated\",\n    \"line\": \"L3\",\n    \"stationId\": \"ST-15\",\n    \"timestamp\": \"2026-05-04T17:30:00Z\",\n    \"ticketId\": \"TCK-005\",\n    \"scanType\": \"NFC\"\n  },\n  {\n    \"userId\": \"USR-006\",\n    \"status\": \"validated\",\n    \"line\": \"L1\",\n    \"stationId\": \"ST-05\",\n    \"timestamp\": \"2026-05-04T17:50:00Z\",\n    \"ticketId\": \"TCK-006\",\n    \"scanType\": \"QR\"\n  },\n  {\n    \"userId\": \"USR-007\",\n    \"status\": \"validated\",\n    \"line\": \"L3\",\n    \"stationId\": \"ST-20\",\n    \"timestamp\": \"2026-05-04T18:05:00Z\",\n    \"ticketId\": \"TCK-007\",\n    \"scanType\": \"NFC\"\n  }\n]",
+              "raw": "[\n  {\n    \"userId\": \"USR-001\",\n    \"status\": \"validated\",\n    \"line\": \"L1\",\n    \"stationId\": \"ST-05\",\n    \"timestamp\": \"{{t_0830}}\",\n    \"ticketId\": \"TCK-001\",\n    \"scanType\": \"NFC\"\n  },\n  {\n    \"userId\": \"USR-002\",\n    \"status\": \"validated\",\n    \"line\": \"L1\",\n    \"stationId\": \"ST-05\",\n    \"timestamp\": \"{{t_0845}}\",\n    \"ticketId\": \"TCK-002\",\n    \"scanType\": \"QR\"\n  },\n  {\n    \"userId\": \"USR-003\",\n    \"status\": \"expired\",\n    \"line\": \"L2\",\n    \"stationId\": \"ST-10\",\n    \"timestamp\": \"{{t_0900}}\",\n    \"ticketId\": \"TCK-003\"\n  },\n  {\n    \"userId\": \"USR-004\",\n    \"status\": \"validated\",\n    \"line\": \"L2\",\n    \"stationId\": \"ST-10\",\n    \"timestamp\": \"{{t_1710}}\",\n    \"ticketId\": \"TCK-004\",\n    \"scanType\": \"NFC\"\n  },\n  {\n    \"userId\": \"USR-005\",\n    \"status\": \"validated\",\n    \"line\": \"L3\",\n    \"stationId\": \"ST-15\",\n    \"timestamp\": \"{{t_1730}}\",\n    \"ticketId\": \"TCK-005\",\n    \"scanType\": \"NFC\"\n  },\n  {\n    \"userId\": \"USR-006\",\n    \"status\": \"validated\",\n    \"line\": \"L1\",\n    \"stationId\": \"ST-05\",\n    \"timestamp\": \"{{t_1750}}\",\n    \"ticketId\": \"TCK-006\",\n    \"scanType\": \"QR\"\n  },\n  {\n    \"userId\": \"USR-007\",\n    \"status\": \"validated\",\n    \"line\": \"L3\",\n    \"stationId\": \"ST-20\",\n    \"timestamp\": \"{{t_1805}}\",\n    \"ticketId\": \"TCK-007\",\n    \"scanType\": \"NFC\"\n  }\n]",
               "options": {
                 "raw": {
                   "language": "json"
@@ -85,7 +94,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "[\n  {\n    \"incidentId\": \"INC-001\",\n    \"type\": \"accident\",\n    \"line\": \"L2\",\n    \"zone\": \"Z_NORTH\",\n    \"timestamp\": \"2026-05-04T10:00:00Z\",\n    \"severity\": \"HIGH\",\n    \"description\": \"Vehicle collision near main station\"\n  },\n  {\n    \"incidentId\": \"INC-002\",\n    \"type\": \"breakdown\",\n    \"line\": \"L1\",\n    \"zone\": \"Z_CENTER\",\n    \"timestamp\": \"2026-05-04T11:00:00Z\",\n    \"severity\": \"CRITICAL\",\n    \"description\": \"Engine failure on bus 404\",\n    \"resolutionMinutes\": 30\n  },\n  {\n    \"incidentId\": \"INC-003\",\n    \"type\": \"delay\",\n    \"line\": \"L3\",\n    \"zone\": \"Z_SOUTH\",\n    \"timestamp\": \"2026-05-04T14:00:00Z\",\n    \"severity\": \"MEDIUM\",\n    \"resolutionMinutes\": 15\n  },\n  {\n    \"incidentId\": \"INC-004\",\n    \"type\": \"accident\",\n    \"line\": \"L2\",\n    \"zone\": \"Z_NORTH\",\n    \"timestamp\": \"2026-05-04T15:30:00Z\",\n    \"severity\": \"MEDIUM\",\n    \"description\": \"Minor collision, road cleared\",\n    \"resolutionMinutes\": 20\n  }\n]",
+              "raw": "[\n  {\n    \"incidentId\": \"INC-001\",\n    \"type\": \"accident\",\n    \"line\": \"L2\",\n    \"zone\": \"Z_NORTH\",\n    \"timestamp\": \"{{t_1000}}\",\n    \"severity\": \"HIGH\",\n    \"description\": \"Vehicle collision near main station\"\n  },\n  {\n    \"incidentId\": \"INC-002\",\n    \"type\": \"breakdown\",\n    \"line\": \"L1\",\n    \"zone\": \"Z_CENTER\",\n    \"timestamp\": \"{{t_1100}}\",\n    \"severity\": \"CRITICAL\",\n    \"description\": \"Engine failure on bus 404\",\n    \"resolutionMinutes\": 30\n  },\n  {\n    \"incidentId\": \"INC-003\",\n    \"type\": \"delay\",\n    \"line\": \"L3\",\n    \"zone\": \"Z_SOUTH\",\n    \"timestamp\": \"{{t_1400}}\",\n    \"severity\": \"MEDIUM\",\n    \"resolutionMinutes\": 15\n  },\n  {\n    \"incidentId\": \"INC-004\",\n    \"type\": \"accident\",\n    \"line\": \"L2\",\n    \"zone\": \"Z_NORTH\",\n    \"timestamp\": \"{{t_1530}}\",\n    \"severity\": \"MEDIUM\",\n    \"description\": \"Minor collision, road cleared\",\n    \"resolutionMinutes\": 20\n  }\n]",
               "options": {
                 "raw": {
                   "language": "json"
@@ -112,7 +121,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "[\n  {\n    \"transactionId\": \"TXN-001\",\n    \"status\": \"completed\",\n    \"line\": \"L1\",\n    \"timestamp\": \"2026-05-04T08:30:00Z\",\n    \"amount\": 25.50,\n    \"method\": \"CARD\"\n  },\n  {\n    \"transactionId\": \"TXN-002\",\n    \"status\": \"completed\",\n    \"zone\": \"Z_CENTER\",\n    \"timestamp\": \"2026-05-04T09:00:00Z\",\n    \"amount\": 10.00,\n    \"method\": \"CASH\"\n  },\n  {\n    \"transactionId\": \"TXN-003\",\n    \"status\": \"completed\",\n    \"line\": \"L2\",\n    \"timestamp\": \"2026-05-04T10:15:00Z\",\n    \"amount\": 50.00,\n    \"method\": \"CARD\"\n  },\n  {\n    \"transactionId\": \"TXN-004\",\n    \"status\": \"completed\",\n    \"line\": \"L3\",\n    \"timestamp\": \"2026-05-04T12:00:00Z\",\n    \"amount\": 15.75,\n    \"method\": \"CASH\"\n  },\n  {\n    \"transactionId\": \"TXN-005\",\n    \"status\": \"failed\",\n    \"line\": \"L1\",\n    \"timestamp\": \"2026-05-04T13:00:00Z\",\n    \"amount\": 25.50,\n    \"method\": \"CARD\"\n  }\n]",
+              "raw": "[\n  {\n    \"transactionId\": \"TXN-001\",\n    \"status\": \"completed\",\n    \"line\": \"L1\",\n    \"timestamp\": \"{{t_0830}}\",\n    \"amount\": 25.50,\n    \"method\": \"CARD\"\n  },\n  {\n    \"transactionId\": \"TXN-002\",\n    \"status\": \"completed\",\n    \"zone\": \"Z_CENTER\",\n    \"timestamp\": \"{{t_0900}}\",\n    \"amount\": 10.00,\n    \"method\": \"CASH\"\n  },\n  {\n    \"transactionId\": \"TXN-003\",\n    \"status\": \"completed\",\n    \"line\": \"L2\",\n    \"timestamp\": \"{{t_1015}}\",\n    \"amount\": 50.00,\n    \"method\": \"CARD\"\n  },\n  {\n    \"transactionId\": \"TXN-004\",\n    \"status\": \"completed\",\n    \"line\": \"L3\",\n    \"timestamp\": \"{{t_1200}}\",\n    \"amount\": 15.75,\n    \"method\": \"CASH\"\n  },\n  {\n    \"transactionId\": \"TXN-005\",\n    \"status\": \"failed\",\n    \"line\": \"L1\",\n    \"timestamp\": \"{{t_1300}}\",\n    \"amount\": 25.50,\n    \"method\": \"CARD\"\n  }\n]",
               "options": {
                 "raw": {
                   "language": "json"
@@ -139,7 +148,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "[\n  {\n    \"userId\": \"USR-101\",\n    \"action\": \"created\",\n    \"planType\": \"MONTHLY_STUDENT\",\n    \"timestamp\": \"2026-05-04T09:00:00Z\"\n  },\n  {\n    \"userId\": \"USR-102\",\n    \"action\": \"renewed\",\n    \"planType\": \"YEARLY_STANDARD\",\n    \"timestamp\": \"2026-05-04T09:15:00Z\"\n  },\n  {\n    \"userId\": \"USR-103\",\n    \"action\": \"renewed\",\n    \"planType\": \"MONTHLY_STANDARD\",\n    \"timestamp\": \"2026-05-04T10:00:00Z\"\n  },\n  {\n    \"userId\": \"USR-104\",\n    \"action\": \"cancelled\",\n    \"planType\": \"MONTHLY_STANDARD\",\n    \"reason\": \"PAYMENT_FAILED\",\n    \"timestamp\": \"2026-05-04T11:00:00Z\"\n  },\n  {\n    \"userId\": \"USR-105\",\n    \"action\": \"created\",\n    \"planType\": \"YEARLY_STANDARD\",\n    \"timestamp\": \"2026-05-04T14:00:00Z\"\n  }\n]",
+              "raw": "[\n  {\n    \"userId\": \"USR-101\",\n    \"action\": \"created\",\n    \"planType\": \"MONTHLY_STUDENT\",\n    \"timestamp\": \"{{t_0900}}\"\n  },\n  {\n    \"userId\": \"USR-102\",\n    \"action\": \"renewed\",\n    \"planType\": \"YEARLY_STANDARD\",\n    \"timestamp\": \"{{t_0915}}\"\n  },\n  {\n    \"userId\": \"USR-103\",\n    \"action\": \"renewed\",\n    \"planType\": \"MONTHLY_STANDARD\",\n    \"timestamp\": \"{{t_1000}}\"\n  },\n  {\n    \"userId\": \"USR-104\",\n    \"action\": \"cancelled\",\n    \"planType\": \"MONTHLY_STANDARD\",\n    \"reason\": \"PAYMENT_FAILED\",\n    \"timestamp\": \"{{t_1100}}\"\n  },\n  {\n    \"userId\": \"USR-105\",\n    \"action\": \"created\",\n    \"planType\": \"YEARLY_STANDARD\",\n    \"timestamp\": \"{{t_1400}}\"\n  }\n]",
               "options": {
                 "raw": {
                   "language": "json"
@@ -166,7 +175,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "[\n  {\n    \"vehicleId\": \"BUS_101\",\n    \"status\": \"in_service\",\n    \"line\": \"L1\",\n    \"zone\": \"Z_CENTER\",\n    \"timestamp\": \"2026-05-04T08:00:00Z\",\n    \"speed\": 42.5,\n    \"occupancy\": 80,\n    \"delayMinutes\": 0\n  },\n  {\n    \"vehicleId\": \"BUS_202\",\n    \"status\": \"in_service\",\n    \"line\": \"L2\",\n    \"zone\": \"Z_NORTH\",\n    \"timestamp\": \"2026-05-04T08:05:00Z\",\n    \"speed\": 35.0,\n    \"occupancy\": 120,\n    \"delayMinutes\": 8\n  },\n  {\n    \"vehicleId\": \"TRAM_01\",\n    \"status\": \"out_of_service\",\n    \"line\": \"T1\",\n    \"zone\": \"Z_EAST\",\n    \"timestamp\": \"2026-05-04T09:00:00Z\",\n    \"speed\": 0.0,\n    \"alertCode\": \"ENG_TEMP_HIGH\"\n  },\n  {\n    \"vehicleId\": \"BUS_303\",\n    \"status\": \"in_service\",\n    \"line\": \"L3\",\n    \"zone\": \"Z_SOUTH\",\n    \"timestamp\": \"2026-05-04T10:00:00Z\",\n    \"speed\": 50.0,\n    \"occupancy\": 45,\n    \"delayMinutes\": 2\n  },\n  {\n    \"vehicleId\": \"BUS_404\",\n    \"status\": \"in_service\",\n    \"line\": \"L1\",\n    \"zone\": \"Z_WEST\",\n    \"timestamp\": \"2026-05-04T11:00:00Z\",\n    \"speed\": 38.0,\n    \"occupancy\": 95,\n    \"delayMinutes\": 5\n  }\n]",
+              "raw": "[\n  {\n    \"vehicleId\": \"BUS_101\",\n    \"status\": \"in_service\",\n    \"line\": \"L1\",\n    \"zone\": \"Z_CENTER\",\n    \"timestamp\": \"{{t_0800}}\",\n    \"speed\": 42.5,\n    \"occupancy\": 80,\n    \"delayMinutes\": 0\n  },\n  {\n    \"vehicleId\": \"BUS_202\",\n    \"status\": \"in_service\",\n    \"line\": \"L2\",\n    \"zone\": \"Z_NORTH\",\n    \"timestamp\": \"{{t_0805}}\",\n    \"speed\": 35.0,\n    \"occupancy\": 120,\n    \"delayMinutes\": 8\n  },\n  {\n    \"vehicleId\": \"TRAM_01\",\n    \"status\": \"out_of_service\",\n    \"line\": \"T1\",\n    \"zone\": \"Z_EAST\",\n    \"timestamp\": \"{{t_0900}}\",\n    \"speed\": 0.0,\n    \"alertCode\": \"ENG_TEMP_HIGH\"\n  },\n  {\n    \"vehicleId\": \"BUS_303\",\n    \"status\": \"in_service\",\n    \"line\": \"L3\",\n    \"zone\": \"Z_SOUTH\",\n    \"timestamp\": \"{{t_1000}}\",\n    \"speed\": 50.0,\n    \"occupancy\": 45,\n    \"delayMinutes\": 2\n  },\n  {\n    \"vehicleId\": \"BUS_404\",\n    \"status\": \"in_service\",\n    \"line\": \"L1\",\n    \"zone\": \"Z_WEST\",\n    \"timestamp\": \"{{t_1100}}\",\n    \"speed\": 38.0,\n    \"occupancy\": 95,\n    \"delayMinutes\": 5\n  }\n]",
               "options": {
                 "raw": {
                   "language": "json"
@@ -193,7 +202,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "[\n  {\n    \"userId\": \"USR-201\",\n    \"action\": \"active\",\n    \"timestamp\": \"2026-05-04T08:00:00Z\",\n    \"deviceOS\": \"iOS\"\n  },\n  {\n    \"userId\": \"USR-202\",\n    \"action\": \"active\",\n    \"timestamp\": \"2026-05-04T08:10:00Z\",\n    \"deviceOS\": \"Android\"\n  },\n  {\n    \"userId\": \"USR-203\",\n    \"action\": \"active\",\n    \"timestamp\": \"2026-05-04T09:00:00Z\",\n    \"deviceOS\": \"iOS\"\n  },\n  {\n    \"userId\": \"USR-204\",\n    \"action\": \"inactive\",\n    \"timestamp\": \"2026-05-04T10:00:00Z\"\n  },\n  {\n    \"userId\": \"USR-205\",\n    \"action\": \"active\",\n    \"timestamp\": \"2026-05-04T17:00:00Z\",\n    \"deviceOS\": \"Android\"\n  }\n]",
+              "raw": "[\n  {\n    \"userId\": \"USR-201\",\n    \"action\": \"active\",\n    \"timestamp\": \"{{t_0800}}\",\n    \"deviceOS\": \"iOS\"\n  },\n  {\n    \"userId\": \"USR-202\",\n    \"action\": \"active\",\n    \"timestamp\": \"{{t_0810}}\",\n    \"deviceOS\": \"Android\"\n  },\n  {\n    \"userId\": \"USR-203\",\n    \"action\": \"active\",\n    \"timestamp\": \"{{t_0900}}\",\n    \"deviceOS\": \"iOS\"\n  },\n  {\n    \"userId\": \"USR-204\",\n    \"action\": \"inactive\",\n    \"timestamp\": \"{{t_1000}}\"\n  },\n  {\n    \"userId\": \"USR-205\",\n    \"action\": \"active\",\n    \"timestamp\": \"{{t_1700}}\",\n    \"deviceOS\": \"Android\"\n  }\n]",
               "options": {
                 "raw": {
                   "language": "json"
@@ -447,6 +456,119 @@
               "path": ["api", "v1", "analytics", "reports", "000000000000000000000000"]
             },
             "description": "Attempts to fetch a report using a valid-format but non-existent MongoDB ID.\n\nExpected: 404 Not Found"
+          }
+        }
+      ]
+    },
+    {
+      "name": "--- PHASE 5: Kafka Mock Tests ---",
+      "item": [
+        {
+          "name": "20 - Kafka Vehicle Event (G7)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/test/kafka/vehicule",
+              "host": ["{{baseUrl}}"],
+              "path": ["test", "kafka", "vehicule"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": \"BUS_404\",\n  \"line\": \"L1\",\n  \"status\": \"ACTIVE\",\n  \"speed\": 45.2,\n  \"delayMinutes\": 2,\n  \"timestamp\": \"2026-05-07T10:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Simulates a Kafka message from G7 (Suivi des véhicules) on topic g8.vehicule.status.\n\nThis directly invokes VehiculeKafkaListener.handleVehiculeEvent() — no real Kafka broker needed.\n\nExpected: 200 OK with \"Vehicle Kafka event simulated successfully\"\nExpected: New IncomingEvent in MongoDB with sourceType=VEHICLE and payload containing vehicleId, line, status, speed, delayMinutes."
+          }
+        },
+        {
+          "name": "21 - Kafka Incident CLOTURE (G9)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/test/kafka/incident",
+              "host": ["{{baseUrl}}"],
+              "path": ["test", "kafka", "incident"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"INC-2026-TEST\",\n  \"source\": \"IOT\",\n  \"type\": \"PANNE_VEHICULE\",\n  \"gravite\": \"CRITIQUE\",\n  \"statut\": \"CLOTURE\",\n  \"vehiculeId\": \"BUS_404\",\n  \"ligneTransport\": \"Ligne 15\",\n  \"declarantId\": 0,\n  \"responsableId\": 42,\n  \"description\": \"Surchauffe du moteur détectée par le capteur thermique.\",\n  \"latitude\": 33.573110,\n  \"longitude\": -7.589843,\n  \"dateSignalement\": \"2026-05-06T14:30:00\",\n  \"dateIncident\": \"2026-05-06T14:28:00\",\n  \"dateResolution\": \"2026-05-06T16:45:00\",\n  \"dateLimiteResolution\": \"2026-05-06T16:30:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Simulates a Kafka message from G9 (Gestion des incidents) on topic incident.analytique.topic.\n\nThis is a CLOTURE (resolved) incident — it SHOULD be saved.\n\nField mapping applied:\n- gravite CRITIQUE → severity CRITICAL\n- zone derived as \"33.57311,-7.589843\"\n- resolutionMinutes = Duration(14:28 → 16:45) = 137 minutes\n\nExpected: 200 OK with \"Incident Kafka event simulated successfully\"\nExpected: New IncomingEvent in MongoDB with sourceType=INCIDENT, payload.severity=CRITICAL, payload.resolutionMinutes=137."
+          }
+        },
+        {
+          "name": "22 - Kafka Incident EN_COURS (G9 - Should be Ignored)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/test/kafka/incident",
+              "host": ["{{baseUrl}}"],
+              "path": ["test", "kafka", "incident"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"INC-2026-IGNORED\",\n  \"source\": \"IOT\",\n  \"type\": \"PANNE_VEHICULE\",\n  \"gravite\": \"CRITIQUE\",\n  \"statut\": \"EN_COURS\",\n  \"vehiculeId\": \"BUS_404\",\n  \"ligneTransport\": \"Ligne 15\",\n  \"declarantId\": 0,\n  \"responsableId\": 42,\n  \"description\": \"This should be ignored\",\n  \"latitude\": 33.573110,\n  \"longitude\": -7.589843,\n  \"dateSignalement\": \"2026-05-06T14:30:00\",\n  \"dateIncident\": \"2026-05-06T14:28:00\",\n  \"dateResolution\": \"2026-05-06T16:45:00\",\n  \"dateLimiteResolution\": \"2026-05-06T16:30:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Tests the status filter: statut=EN_COURS is NOT a final status (only CLOTURE and ANNULE are accepted).\n\nExpected: 200 OK (the listener handles it gracefully)\nExpected: NO new document in MongoDB — the event is logged as a warning and skipped.\nCheck service logs for: \"Incident event ignored because status is not final: statut=EN_COURS\""
+          }
+        },
+        {
+          "name": "23 - Kafka Invalid JSON (Error Resilience)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/test/kafka/vehicule",
+              "host": ["{{baseUrl}}"],
+              "path": ["test", "kafka", "vehicule"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "this is not valid json {{{",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            },
+            "description": "Tests error resilience: sends malformed JSON to the vehicle Kafka listener.\n\nThe listener catches JsonProcessingException internally and logs the error. It never throws — a bad Kafka message must not kill the listener.\n\nExpected: 200 OK (error is caught inside the listener, not propagated to the controller)\nExpected: Service continues running normally after this call.\nExpected: Error logged in service logs."
           }
         }
       ]

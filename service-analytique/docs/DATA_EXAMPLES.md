@@ -23,6 +23,8 @@ This document serves as the comprehensive reference for all data structures flow
 | `GET` | `/api/v1/analytics/reports/{id}` | Retrieve a generated report by ID |
 | `POST` | `/predict/peak-hours` | (ML Service) Predict future peak hours |
 | `POST` | `/predict/incidents` | (ML Service) Predict high-risk incident zones |
+| `POST` | `/test/kafka/vehicule` | ⚙️ Mock — Simulate G7 vehicle Kafka event |
+| `POST` | `/test/kafka/incident` | ⚙️ Mock — Simulate G9 incident Kafka event |
 
 ---
 
@@ -190,14 +192,154 @@ This document serves as the comprehensive reference for all data structures flow
 ]
 ```
 
-### NOTE — G7 Vehicle Data (Kafka)
-G7 (Suivi des véhicules) does NOT use the POST `/api/v1/ingestion/vehicles` endpoint. Vehicle telemetry data is high-frequency and time-sensitive, so G7 sends data via Kafka instead.
+### Kafka Integration — G7 Vehicle Events & G9 Incident Events
 
-- **Topic name:** `vehicle-events` (to be confirmed with G7)
-- **Consumer:** G8 listens to this topic internally via a Kafka consumer
-- **Format:** same payload structure as the vehicle ingestion examples above
+G8 is a **Kafka consumer only** — we never produce to Kafka. We consume from two topics:
 
-The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testing purposes only.
+| Topic | Producer | Purpose |
+| :--- | :--- | :--- |
+| `g8.vehicule.status` | G7 (Suivi des véhicules) | Vehicle telemetry (high-frequency, time-sensitive) |
+| `incident.analytique.topic` | G9 (Gestion des incidents) | Resolved/cancelled incident reports |
+
+> **⚠️ Kafka Configuration for Production**
+>
+> Kafka listeners are **disabled by default** (`auto-startup: false`). This prevents log flooding when no broker is available during local development.
+>
+> When connecting to a real Kafka broker (e.g., when integrating with G7/G9 in the root `docker-compose`), set **both** environment variables in the G8 service:
+> ```yaml
+> environment:
+>   KAFKA_BOOTSTRAP_SERVERS: kafka:9092          # real broker address
+>   KAFKA_LISTENER_AUTO_START: true              # activate the Kafka consumers
+> ```
+> - `KAFKA_BOOTSTRAP_SERVERS` — points to the real Kafka broker (default: `localhost:9092`)
+> - `KAFKA_LISTENER_AUTO_START` — enables the `@KafkaListener` consumer threads (default: `false`)
+>
+> **Zero code changes are needed** — only these two environment variables change.
+> The mock test endpoints (`/test/kafka/vehicule`, `/test/kafka/incident`) continue to work regardless of this setting.
+
+---
+
+#### G7 Vehicle Kafka Payload
+**Topic:** `g8.vehicule.status`
+
+G7 sends individual vehicle events (not arrays):
+```json
+{
+  "vehicleId": "BUS_404",
+  "line": "L1",
+  "status": "ACTIVE",
+  "speed": 45.2,
+  "delayMinutes": 2,
+  "timestamp": "2026-05-07T10:00:00"
+}
+```
+
+**Field mapping (G7 → G8 IncomingEvent):**
+| G7 Field | G8 Payload Field | Type | Notes |
+| :--- | :--- | :--- | :--- |
+| `vehicleId` | `vehicleId` | String | Required |
+| `line` | `line` | String | Required |
+| `status` | `status` | String | Required |
+| `speed` | `speed` | Double | Optional |
+| `delayMinutes` | `delayMinutes` | Integer | Optional |
+| `timestamp` | *(event timestamp)* | String (ISO) | Maps to `IncomingEvent.timestamp` |
+
+**Resulting IncomingEvent in MongoDB:**
+```json
+{
+  "sourceType": "VEHICLE",
+  "payload": {
+    "vehicleId": "BUS_404",
+    "line": "L1",
+    "status": "ACTIVE",
+    "speed": 45.2,
+    "delayMinutes": 2
+  },
+  "timestamp": { "$date": "2026-05-07T09:00:00.000Z" },
+  "receivedAt": { "$date": "2026-05-07T22:58:44.784Z" },
+  "processed": false
+}
+```
+
+**Mock test endpoint:** `POST /test/kafka/vehicule`
+```bash
+curl -X POST http://localhost:8088/test/kafka/vehicule \
+  -H "Content-Type: application/json" \
+  -d '{"vehicleId":"BUS_404","line":"L1","status":"ACTIVE","speed":45.2,"delayMinutes":2,"timestamp":"2026-05-07T10:00:00"}'
+```
+Expected: `200 OK` — `"Vehicle Kafka event simulated successfully"`
+
+---
+
+#### G9 Incident Kafka Payload
+**Topic:** `incident.analytique.topic`
+
+G9 sends resolved/cancelled incident events:
+```json
+{
+  "reference": "INC-2026-ABCD",
+  "source": "IOT",
+  "type": "PANNE_VEHICULE",
+  "gravite": "CRITIQUE",
+  "statut": "CLOTURE",
+  "vehiculeId": "550e8400-e29b-41d4-a716-446655440000",
+  "ligneTransport": "Ligne 15",
+  "declarantId": 0,
+  "responsableId": 42,
+  "description": "Surchauffe du moteur détectée par le capteur thermique.",
+  "latitude": 33.573110,
+  "longitude": -7.589843,
+  "dateSignalement": "2026-05-06T14:30:00",
+  "dateIncident": "2026-05-06T14:28:00",
+  "dateResolution": "2026-05-06T16:45:00",
+  "dateLimiteResolution": "2026-05-06T16:30:00"
+}
+```
+
+**Processing rules:**
+- **Only** events with `statut` = `CLOTURE` or `ANNULE` are saved
+- Events with any other `statut` (e.g., `EN_COURS`, `OUVERT`) are ignored with a warning log
+
+**Field mapping (G9 → G8 IncomingEvent):**
+| G9 Field | G8 Payload Field | Type | Transformation |
+| :--- | :--- | :--- | :--- |
+| `reference` | `incidentId` | String | Direct copy |
+| `type` | `type` | String | Direct copy (PANNE_VEHICULE, ACCIDENT, etc.) |
+| `gravite` | `severity` | String | FAIBLE→LOW, MOYEN→MEDIUM, ELEVE→HIGH, CRITIQUE→CRITICAL |
+| `latitude` + `longitude` | `zone` | String | Derived as `"latitude,longitude"` (e.g., `"33.57311,-7.589843"`) |
+| `statut` | `status` | String | Direct copy (CLOTURE or ANNULE only) |
+| `ligneTransport` | `line` | String | Direct copy |
+| `dateIncident` + `dateResolution` | `resolutionMinutes` | Integer | `Duration.between(dateIncident, dateResolution).toMinutes()` |
+| `dateIncident` | *(event timestamp)* | String (ISO) | Maps to `IncomingEvent.timestamp` |
+
+**Resulting IncomingEvent in MongoDB:**
+```json
+{
+  "sourceType": "INCIDENT",
+  "payload": {
+    "incidentId": "INC-2026-ABCD",
+    "type": "PANNE_VEHICULE",
+    "severity": "CRITICAL",
+    "zone": "33.57311,-7.589843",
+    "status": "CLOTURE",
+    "line": "Ligne 15",
+    "resolutionMinutes": 137
+  },
+  "timestamp": { "$date": "2026-05-06T13:28:00.000Z" },
+  "receivedAt": { "$date": "2026-05-07T22:59:06.257Z" },
+  "processed": false
+}
+```
+
+**Mock test endpoint:** `POST /test/kafka/incident`
+```bash
+curl -X POST http://localhost:8088/test/kafka/incident \
+  -H "Content-Type: application/json" \
+  -d '{"reference":"INC-2026-TEST","source":"IOT","type":"PANNE_VEHICULE","gravite":"CRITIQUE","statut":"CLOTURE","vehiculeId":"BUS_404","ligneTransport":"Ligne 15","declarantId":0,"responsableId":42,"description":"Test incident","latitude":33.573110,"longitude":-7.589843,"dateSignalement":"2026-05-06T14:30:00","dateIncident":"2026-05-06T14:28:00","dateResolution":"2026-05-06T16:45:00","dateLimiteResolution":"2026-05-06T16:30:00"}'
+```
+Expected: `200 OK` — `"Incident Kafka event simulated successfully"`
+
+> **Note:** The REST endpoints `POST /api/v1/ingestion/vehicles` and `POST /api/v1/ingestion/incidents` remain available for direct testing/backward compatibility. In production, G7 and G9 will send data exclusively via Kafka.
 
 ---
 
@@ -332,122 +474,85 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 ### TRIPS (FREQ_01 to FREQ_07)
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9001" },
   "snapshotType": "TRIPS",
-  "statId": "FREQ_01",
+  "statId": "FREQ_TOTAL_VALIDATIONS",
   "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 145000.0,
-  "metadata": {
-    "id": "FREQ_TOTAL_VALIDATIONS",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "period": "2026-05-08",
+  "value": 6.0,
+  "metadata": { "id": "FREQ_01", "data": { "total_validations": 6, "date": "2026-05-08" } },
+  "computedAt": "2026-05-08T01:00:14.862",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9002" },
   "snapshotType": "TRIPS",
-  "statId": "FREQ_02",
+  "statId": "FREQ_PEAK_HOUR_DIST",
   "granularity": "DAY",
-  "period": "2026-05-03",
+  "period": "2026-05-08",
+  "value": 6.0,
+  "metadata": { "id": "FREQ_02", "data": { "0": 0, "1": 0, "8": 2, "9": 1, "17": 2, "18": 1, "...": "..." } },
+  "computedAt": "2026-05-08T01:00:14.868",
+  "prediction": false
+}
+```
+```json
+{
+  "snapshotType": "TRIPS",
+  "statId": "FREQ_PEAK_HOURS",
+  "granularity": "WEEK",
+  "period": "2026-05-02/2026-05-08",
+  "value": 6.0,
+  "metadata": { "id": "FREQ_03", "data": { "17": 3, "8": 2, "18": 1 } },
+  "computedAt": "2026-05-08T01:00:14.874",
+  "prediction": false
+}
+```
+```json
+{
+  "snapshotType": "TRIPS",
+  "statId": "FREQ_AVG_DAILY",
+  "granularity": "MONTH",
+  "period": "2026-05",
+  "value": 0.75,
+  "metadata": { "id": "FREQ_04", "data": { "avg_daily_passengers": 0.75, "total_validations": 6 } },
+  "computedAt": "2026-05-08T01:00:14.882",
+  "prediction": false
+}
+```
+```json
+{
+  "snapshotType": "TRIPS",
+  "statId": "FREQ_LINE_RANKING",
+  "granularity": "WEEK",
+  "period": "2026-05-02/2026-05-08",
+  "value": 6.0,
+  "metadata": { "id": "FREQ_05", "data": { "L1": 3, "L3": 2, "L2": 1 } },
+  "computedAt": "2026-05-08T01:00:14.889",
+  "prediction": false
+}
+```
+```json
+{
+  "snapshotType": "TRIPS",
+  "statId": "FREQ_STATION_FOOTFALL",
+  "granularity": "DAY",
+  "period": "2026-05-08",
+  "value": 6.0,
+  "metadata": { "id": "FREQ_06", "data": { "ST-05": 3, "ST-15": 1, "ST-10": 1, "ST-20": 1 } },
+  "computedAt": "2026-05-08T01:00:14.896",
+  "prediction": false
+}
+```
+```json
+{
+  "snapshotType": "TRIPS",
+  "statId": "FREQ_WEEKEND_RATIO",
+  "granularity": "WEEK",
+  "period": "2026-05-02/2026-05-08",
   "value": 0.0,
-  "metadata": {
-    "id": "FREQ_PEAK_HOUR_DIST",
-    "data": {
-      "8": 15000,
-      "9": 12000,
-      "17": 18000,
-      "18": 16500
-    }
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
-  "prediction": false
-}
-```
-```json
-{
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9003" },
-  "snapshotType": "TRIPS",
-  "statId": "FREQ_03",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 0.0,
-  "metadata": {
-    "id": "FREQ_BY_LINE",
-    "data": {
-      "L1": 45000,
-      "L2": 32000,
-      "T1": 68000
-    }
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
-  "prediction": false
-}
-```
-```json
-{
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9004" },
-  "snapshotType": "TRIPS",
-  "statId": "FREQ_04",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 2.4,
-  "metadata": {
-    "id": "FREQ_FRAUD_RATE",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
-  "prediction": false
-}
-```
-```json
-{
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9005" },
-  "snapshotType": "TRIPS",
-  "statId": "FREQ_05",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 18.5,
-  "metadata": {
-    "id": "FREQ_TRANSFER_RATE",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
-  "prediction": false
-}
-```
-```json
-{
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9006" },
-  "snapshotType": "TRIPS",
-  "statId": "FREQ_06",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 3480.0,
-  "metadata": {
-    "id": "FREQ_INVALID_SCANS",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
-  "prediction": false
-}
-```
-```json
-{
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9007" },
-  "snapshotType": "TRIPS",
-  "statId": "FREQ_07",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 72.1,
-  "metadata": {
-    "id": "FREQ_CARD_USAGE_RATE",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "metadata": { "id": "FREQ_07", "data": { "weekend_vs_weekday_ratio": 0.0, "weekday": 6, "weekend": 0 } },
+  "computedAt": "2026-05-08T01:00:14.904",
   "prediction": false
 }
 ```
@@ -455,87 +560,61 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 ### REVENUE (REV_01 to REV_05)
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9011" },
   "snapshotType": "REVENUE",
-  "statId": "REV_01",
+  "statId": "REV_TOTAL",
   "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 450000.50,
-  "metadata": {
-    "id": "REV_TOTAL",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "period": "2026-05-08",
+  "value": 101.25,
+  "metadata": { "id": "REV_01", "data": { "total_revenue": 101.25, "date": "2026-05-08" } },
+  "computedAt": "2026-05-08T01:00:14.909",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9012" },
   "snapshotType": "REVENUE",
-  "statId": "REV_02",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 0.0,
-  "metadata": {
-    "id": "REV_BY_LINE",
-    "data": {
-      "L1": 150000.0,
-      "T1": 300000.50
-    }
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "REV_BY_TYPE",
+  "granularity": "MONTH",
+  "period": "2026-05",
+  "value": 101.25,
+  "metadata": { "id": "REV_02", "data": { "CARD": 75.5, "CASH": 25.75 } },
+  "computedAt": "2026-05-08T01:00:14.917",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9013" },
   "snapshotType": "REVENUE",
-  "statId": "REV_03",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 0.0,
-  "metadata": {
-    "id": "REV_CASH_VS_CARD",
-    "data": {
-      "CASH": 120000.0,
-      "CARD": 330000.50
-    }
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "REV_AVG_PER_PASSENGER",
+  "granularity": "WEEK",
+  "period": "2026-05-02/2026-05-08",
+  "value": 16.875,
+  "metadata": { "id": "REV_03", "data": { "avg_revenue_per_passenger": 16.875, "revenue": 101.25, "passengers": 6.0 } },
+  "computedAt": "2026-05-08T01:00:14.923",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9014" },
   "snapshotType": "REVENUE",
-  "statId": "REV_04",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 124.0,
-  "metadata": {
-    "id": "REV_HIGH_VALUE_TX",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "REV_PAYMENT_METHOD",
+  "granularity": "MONTH",
+  "period": "2026-05",
+  "value": 5.0,
+  "metadata": { "id": "REV_04", "data": { "total_payments": 5.0, "payment_method_breakdown": { "CARD": 60.0, "CASH": 40.0 } } },
+  "computedAt": "2026-05-08T01:00:14.93",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9015" },
   "snapshotType": "REVENUE",
-  "statId": "REV_05",
+  "statId": "REV_TREND",
   "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 1500.0,
-  "metadata": {
-    "id": "REV_REFUND_VOLUME",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "period": "2026-04-09/2026-05-08",
+  "value": 101.25,
+  "metadata": { "id": "REV_05", "data": { "revenue_trend": [{"date": "2026-05-07", "amount": 101.25}, {"date": "2026-05-08", "amount": 0.0}] } },
+  "computedAt": "2026-05-08T01:00:14.937",
   "prediction": false
 }
 ```
@@ -543,83 +622,61 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 ### INCIDENTS (INC_01 to INC_05)
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9021" },
   "snapshotType": "INCIDENTS",
-  "statId": "INC_01",
+  "statId": "INC_TOTAL",
   "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 12.0,
-  "metadata": {
-    "id": "INC_TOTAL",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "period": "2026-05-08",
+  "value": 4.0,
+  "metadata": { "id": "INC_01", "data": { "total_incidents": 4, "date": "2026-05-08" } },
+  "computedAt": "2026-05-08T01:00:14.777",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9022" },
   "snapshotType": "INCIDENTS",
-  "statId": "INC_02",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 45.5,
-  "metadata": {
-    "id": "INC_RESOLUTION_TIME",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "INC_BY_TYPE",
+  "granularity": "WEEK",
+  "period": "2026-05-02/2026-05-08",
+  "value": 3.0,
+  "metadata": { "id": "INC_02", "data": { "INCIDENT_DELAY": 1, "INCIDENT_BREAKDOWN": 1, "INCIDENT_ACCIDENT": 2 } },
+  "computedAt": "2026-05-08T01:00:14.785",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9023" },
   "snapshotType": "INCIDENTS",
-  "statId": "INC_03",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 2.0,
-  "metadata": {
-    "id": "INC_CRITICAL",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "INC_BY_ZONE",
+  "granularity": "WEEK",
+  "period": "2026-05-02/2026-05-08",
+  "value": 3.0,
+  "metadata": { "id": "INC_03", "data": { "Z_CENTER": 1, "Z_SOUTH": 1, "Z_NORTH": 2 } },
+  "computedAt": "2026-05-08T01:00:14.797",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9024" },
   "snapshotType": "INCIDENTS",
-  "statId": "INC_04",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 15.0,
-  "metadata": {
-    "id": "INC_AVG_DELAY",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "INC_AVG_RESOLUTION",
+  "granularity": "WEEK",
+  "period": "2026-05-02/2026-05-08",
+  "value": 21.67,
+  "metadata": { "id": "INC_04", "data": { "unit": "minutes", "avg_resolution_time": 21.67 } },
+  "computedAt": "2026-05-08T01:00:14.807",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9025" },
   "snapshotType": "INCIDENTS",
-  "statId": "INC_05",
-  "granularity": "DAY",
-  "period": "2026-05-03",
+  "statId": "INC_REPEAT_ZONES",
+  "granularity": "MONTH",
+  "period": "2026-05",
   "value": 1.0,
-  "metadata": {
-    "id": "INC_REPEAT_ZONES",
-    "data": {
-      "Z_CENTER": 4
-    }
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "metadata": { "id": "INC_05", "data": { "Z_NORTH": 2 } },
+  "computedAt": "2026-05-08T01:00:14.821",
   "prediction": false
 }
 ```
@@ -627,81 +684,61 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 ### VEHICLES (VEH_01 to VEH_05)
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9031" },
   "snapshotType": "VEHICLES",
-  "statId": "VEH_01",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 450.0,
-  "metadata": {
-    "id": "VEH_ACTIVE_COUNT",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "VEH_ACTIVE_COUNT",
+  "granularity": "REAL_TIME",
+  "period": "now",
+  "value": 4.0,
+  "metadata": { "id": "VEH_01", "data": { "active_vehicles_count": 4 } },
+  "computedAt": "2026-05-08T01:00:14.829",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9032" },
   "snapshotType": "VEHICLES",
-  "statId": "VEH_02",
+  "statId": "VEH_PUNCTUALITY",
   "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 92.5,
-  "metadata": {
-    "id": "VEH_PUNCTUALITY",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "period": "2026-05-08",
+  "value": 75.0,
+  "metadata": { "id": "VEH_02", "data": { "avgPunctualityRate": 75.0, "byLine": { "L1": 100.0, "L2": 0.0, "L3": 50.0 } } },
+  "computedAt": "2026-05-08T01:00:14.835",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9033" },
   "snapshotType": "VEHICLES",
-  "statId": "VEH_03",
+  "statId": "VEH_DELAY_DIST",
   "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 18.0,
-  "metadata": {
-    "id": "VEH_OVERCAPACITY",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "period": "2026-05-08",
+  "value": 2.0,
+  "metadata": { "id": "VEH_03", "data": { "0-5min": 2, "5-10min": 1, ">10min": 0 } },
+  "computedAt": "2026-05-08T01:00:14.84",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9034" },
   "snapshotType": "VEHICLES",
-  "statId": "VEH_04",
+  "statId": "VEH_UTILIZATION",
   "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 5.0,
-  "metadata": {
-    "id": "VEH_MAINTENANCE",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "period": "2026-05-08",
+  "value": 80.0,
+  "metadata": { "id": "VEH_04", "data": { "active": 4, "total": 5, "vehicle_utilization_rate": 80.0 } },
+  "computedAt": "2026-05-08T01:00:14.847",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9035" },
   "snapshotType": "VEHICLES",
-  "statId": "VEH_05",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 24.8,
-  "metadata": {
-    "id": "VEH_AVG_SPEED",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "VEH_AVG_SPEED",
+  "granularity": "WEEK",
+  "period": "2026-05-02/2026-05-08",
+  "value": 31.3,
+  "metadata": { "id": "VEH_05", "data": { "L1": 40.25, "L2": 35.0, "T1": 0.0, "L3": 50.0 } },
+  "computedAt": "2026-05-08T01:00:14.856",
   "prediction": false
 }
 ```
@@ -709,81 +746,61 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 ### SUBSCRIPTIONS (SUB_01 to SUB_05)
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9041" },
   "snapshotType": "SUBSCRIPTIONS",
-  "statId": "SUB_01",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 85000.0,
-  "metadata": {
-    "id": "SUB_ACTIVE",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "SUB_ACTIVE",
+  "granularity": "REAL_TIME",
+  "period": "now",
+  "value": 4.0,
+  "metadata": { "id": "SUB_01", "data": { "active_subscriptions": 4 } },
+  "computedAt": "2026-05-08T01:00:14.948",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9042" },
   "snapshotType": "SUBSCRIPTIONS",
-  "statId": "SUB_02",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 450.0,
-  "metadata": {
-    "id": "SUB_NEW",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "SUB_NEW",
+  "granularity": "WEEK",
+  "period": "2026-05-02/2026-05-08",
+  "value": 2.0,
+  "metadata": { "id": "SUB_02", "data": { "today": 0, "this_week": 2 } },
+  "computedAt": "2026-05-08T01:00:14.963",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9043" },
   "snapshotType": "SUBSCRIPTIONS",
-  "statId": "SUB_03",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 1200.0,
-  "metadata": {
-    "id": "SUB_RENEWALS",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "SUB_RENEWAL_RATE",
+  "granularity": "MONTH",
+  "period": "2026-05",
+  "value": 40.0,
+  "metadata": { "id": "SUB_03", "data": { "total": 5, "renewal_rate": 40.0, "renewals": 2 } },
+  "computedAt": "2026-05-08T01:00:14.977",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9044" },
   "snapshotType": "SUBSCRIPTIONS",
-  "statId": "SUB_04",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 2.1,
-  "metadata": {
-    "id": "SUB_CHURN",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "SUB_CHURN",
+  "granularity": "MONTH",
+  "period": "2026-05",
+  "value": 20.0,
+  "metadata": { "id": "SUB_04", "data": { "churn_rate": 20.0, "total": 5, "cancellations": 1 } },
+  "computedAt": "2026-05-08T01:00:14.989",
   "prediction": false
 }
 ```
 ```json
 {
-  "_id": { "$oid": "6634d555c2c1a84f3d1b9045" },
   "snapshotType": "SUBSCRIPTIONS",
-  "statId": "SUB_05",
-  "granularity": "DAY",
-  "period": "2026-05-03",
-  "value": 125000.0,
-  "metadata": {
-    "id": "SUB_REVENUE",
-    "data": {}
-  },
-  "computedAt": { "$date": "2026-05-03T14:30:00Z" },
+  "statId": "SUB_TYPE_DIST",
+  "granularity": "MONTH",
+  "period": "2026-05",
+  "value": 5.0,
+  "metadata": { "id": "SUB_05", "data": { "total_subscriptions": 5.0, "subscription_type_distribution": { "MONTHLY_STUDENT": 20.0, "YEARLY_STANDARD": 40.0, "MONTHLY_STANDARD": 40.0 } } },
+  "computedAt": "2026-05-08T01:00:15.004",
   "prediction": false
 }
 ```
@@ -843,18 +860,18 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 ## Section 5 — Analytics API Responses (what G10 receives from us)
 
 **GET `/api/v1/analytics/trips/summary`**
-*(Note: Omitting ID/internal fields for brevity as sent to client)*
+*(Note: Omitting internal fields like `_class` for brevity)*
 ```json
 [
   {
-    "id": "6634d555c2c1a84f3d1b9001",
+    "id": "69fd39d180942120751154ce",
     "snapshotType": "TRIPS",
-    "statId": "FREQ_01",
+    "statId": "FREQ_TOTAL_VALIDATIONS",
     "granularity": "DAY",
-    "period": "2026-05-03",
-    "value": 145000.0,
-    "metadata": { "id": "FREQ_TOTAL_VALIDATIONS", "data": {} },
-    "computedAt": "2026-05-03T14:30:00",
+    "period": "2026-05-08",
+    "value": 6.0,
+    "metadata": { "id": "FREQ_01", "data": { "total_validations": 6, "date": "2026-05-08" } },
+    "computedAt": "2026-05-08T01:00:14.862",
     "prediction": false
   }
 ]
@@ -864,14 +881,14 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 ```json
 [
   {
-    "id": "6634d555c2c1a84f3d1b9011",
+    "id": "69fd39d180942120751154d5",
     "snapshotType": "REVENUE",
-    "statId": "REV_01",
+    "statId": "REV_TOTAL",
     "granularity": "DAY",
-    "period": "2026-05-03",
-    "value": 450000.50,
-    "metadata": { "id": "REV_TOTAL", "data": {} },
-    "computedAt": "2026-05-03T14:30:00",
+    "period": "2026-05-08",
+    "value": 101.25,
+    "metadata": { "id": "REV_01", "data": { "total_revenue": 101.25, "date": "2026-05-08" } },
+    "computedAt": "2026-05-08T01:00:14.909",
     "prediction": false
   }
 ]
@@ -881,14 +898,14 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 ```json
 [
   {
-    "id": "6634d555c2c1a84f3d1b9021",
+    "id": "69fd39d080942120751154c4",
     "snapshotType": "INCIDENTS",
-    "statId": "INC_01",
+    "statId": "INC_TOTAL",
     "granularity": "DAY",
-    "period": "2026-05-03",
-    "value": 12.0,
-    "metadata": { "id": "INC_TOTAL", "data": {} },
-    "computedAt": "2026-05-03T14:30:00",
+    "period": "2026-05-08",
+    "value": 4.0,
+    "metadata": { "id": "INC_01", "data": { "total_incidents": 4, "date": "2026-05-08" } },
+    "computedAt": "2026-05-08T01:00:14.777",
     "prediction": false
   }
 ]
@@ -898,14 +915,14 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 ```json
 [
   {
-    "id": "6634d555c2c1a84f3d1b9031",
+    "id": "69fd39d180942120751154c9",
     "snapshotType": "VEHICLES",
-    "statId": "VEH_01",
-    "granularity": "DAY",
-    "period": "2026-05-03",
-    "value": 450.0,
-    "metadata": { "id": "VEH_ACTIVE_COUNT", "data": {} },
-    "computedAt": "2026-05-03T14:30:00",
+    "statId": "VEH_ACTIVE_COUNT",
+    "granularity": "REAL_TIME",
+    "period": "now",
+    "value": 4.0,
+    "metadata": { "id": "VEH_01", "data": { "active_vehicles_count": 4 } },
+    "computedAt": "2026-05-08T01:00:14.829",
     "prediction": false
   }
 ]
@@ -915,14 +932,14 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 ```json
 [
   {
-    "id": "6634d555c2c1a84f3d1b9061",
+    "id": "69fd39d180942120751154df",
     "snapshotType": "USERS",
-    "statId": "USR_01",
+    "statId": "USR_DAU",
     "granularity": "DAY",
-    "period": "2026-05-03",
-    "value": 15000.0,
-    "metadata": { "id": "USR_ACTIVE_USERS", "data": {} },
-    "computedAt": "2026-05-03T14:30:00",
+    "period": "2026-05-08",
+    "value": 4.0,
+    "metadata": { "id": "USR_01", "data": { "daily_active_users": 4, "date": "2026-05-08" } },
+    "computedAt": "2026-05-08T01:00:15.013",
     "prediction": false
   }
 ]
@@ -932,42 +949,43 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 ```json
 [
   {
-    "id": "6634d555c2c1a84f3d1b9041",
+    "id": "69fd39d180942120751154da",
     "snapshotType": "SUBSCRIPTIONS",
-    "statId": "SUB_01",
-    "granularity": "DAY",
-    "period": "2026-05-03",
-    "value": 85000.0,
-    "metadata": { "id": "SUB_ACTIVE", "data": {} },
-    "computedAt": "2026-05-03T14:30:00",
+    "statId": "SUB_ACTIVE",
+    "granularity": "REAL_TIME",
+    "period": "now",
+    "value": 4.0,
+    "metadata": { "id": "SUB_01", "data": { "active_subscriptions": 4 } },
+    "computedAt": "2026-05-08T01:00:14.948",
     "prediction": false
   }
 ]
 ```
 
 **GET `/api/v1/analytics/dashboard`**
+*(Returns a flat list of all the snapshots above, plus predictions)*
 ```json
 [
   {
-    "id": "6634d555c2c1a84f3d1b9001",
+    "id": "69fd39d180942120751154ce",
     "snapshotType": "TRIPS",
-    "statId": "FREQ_01",
+    "statId": "FREQ_TOTAL_VALIDATIONS",
     "granularity": "DAY",
-    "period": "2026-05-03",
-    "value": 145000.0,
-    "metadata": { "id": "FREQ_TOTAL_VALIDATIONS", "data": {} },
-    "computedAt": "2026-05-03T14:30:00",
+    "period": "2026-05-08",
+    "value": 6.0,
+    "metadata": { "id": "FREQ_01", "data": { "total_validations": 6, "date": "2026-05-08" } },
+    "computedAt": "2026-05-08T01:00:14.862",
     "prediction": false
   },
   {
-    "id": "6634d555c2c1a84f3d1b9011",
+    "id": "69fd39d180942120751154d5",
     "snapshotType": "REVENUE",
-    "statId": "REV_01",
+    "statId": "REV_TOTAL",
     "granularity": "DAY",
-    "period": "2026-05-03",
-    "value": 450000.50,
-    "metadata": { "id": "REV_TOTAL", "data": {} },
-    "computedAt": "2026-05-03T14:30:00",
+    "period": "2026-05-08",
+    "value": 101.25,
+    "metadata": { "id": "REV_01", "data": { "total_revenue": 101.25, "date": "2026-05-08" } },
+    "computedAt": "2026-05-08T01:00:14.909",
     "prediction": false
   }
 ]
@@ -980,7 +998,7 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 **POST `/api/v1/analytics/reports/generate` (Request Body)**
 ```json
 {
-  "period": "2026-05-03",
+  "period": "2026-05-08",
   "types": ["TRIPS", "REVENUE", "INCIDENTS"]
 }
 ```
@@ -988,31 +1006,35 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 **POST `/api/v1/analytics/reports/generate` (Response)**
 ```json
 {
-  "id": "6634d8a1c2c1a84f3d1ba111",
-  "generatedAt": "2026-05-03T14:40:01",
-  "period": "2026-05-03",
-  "requestedTypes": ["TRIPS", "REVENUE", "INCIDENTS"],
+  "id": "69fd3b868094212075115504",
+  "generatedAt": "2026-05-08T01:25:26.522704353",
+  "period": "2026-05-08",
+  "requestedTypes": [
+    "TRIPS",
+    "REVENUE",
+    "INCIDENTS"
+  ],
   "snapshots": [
     {
-      "id": "6634d555c2c1a84f3d1b9001",
+      "id": "69fd39d180942120751154ce",
       "snapshotType": "TRIPS",
-      "statId": "FREQ_01",
+      "statId": "FREQ_TOTAL_VALIDATIONS",
       "granularity": "DAY",
-      "period": "2026-05-03",
-      "value": 145000.0,
-      "metadata": { "id": "FREQ_TOTAL_VALIDATIONS", "data": {} },
-      "computedAt": "2026-05-03T14:30:00",
+      "period": "2026-05-08",
+      "value": 6.0,
+      "metadata": { "id": "FREQ_01", "data": { "date": "2026-05-08", "total_validations": 6 } },
+      "computedAt": "2026-05-08T01:25:08.75",
       "prediction": false
     },
     {
-      "id": "6634d555c2c1a84f3d1b9011",
+      "id": "69fd39d180942120751154d5",
       "snapshotType": "REVENUE",
-      "statId": "REV_01",
+      "statId": "REV_TOTAL",
       "granularity": "DAY",
-      "period": "2026-05-03",
-      "value": 450000.50,
-      "metadata": { "id": "REV_TOTAL", "data": {} },
-      "computedAt": "2026-05-03T14:30:00",
+      "period": "2026-05-08",
+      "value": 101.25,
+      "metadata": { "id": "REV_01", "data": { "total_revenue": 101.25, "date": "2026-05-08" } },
+      "computedAt": "2026-05-08T01:25:08.816",
       "prediction": false
     }
   ]
@@ -1224,23 +1246,26 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 **400 BAD REQUEST (Empty batch provided to ingestion)**
 ```json
 {
-  "timestamp": "2026-05-03T14:40:05.123+00:00",
-  "status": 400,
-  "error": "Bad Request",
-  "path": "/api/v1/ingestion/tickets"
+  "totalReceived": 0,
+  "totalAccepted": 0,
+  "totalRejected": 0,
+  "rejectedReasons": [
+    "Request body must contain at least one event."
+  ],
+  "status": "REJECTED"
 }
 ```
 
-**207 MULTI-STATUS (Mixed valid/invalid batch)**
+**200 OK — MULTI-STATUS (Mixed valid/invalid batch)**
 ```json
 {
-  "status": "PARTIAL",
-  "message": "Processed 2/3 events successfully",
-  "processedCount": 2,
-  "failedCount": 1,
-  "errors": [
-    "Event at index 1: Invalid payload structure"
-  ]
+  "totalReceived": 3,
+  "totalAccepted": 2,
+  "totalRejected": 1,
+  "rejectedReasons": [
+    "Event 1: Timestamp cannot be more than 5 minutes in the future."
+  ],
+  "status": "PARTIAL"
 }
 ```
 
@@ -1268,10 +1293,12 @@ The REST endpoint `POST /api/v1/ingestion/vehicles` remains available for testin
 
 ## Data Flow Diagram
 
-**Other groups → Ingestion → MongoDB → Scheduler → Snapshots → Analytics API → G10 → Admin/Directeur**
+**Other groups → Ingestion (REST + Kafka) → MongoDB → Scheduler → Snapshots → Analytics API → G10 → Admin/Directeur**
 
-1. **Other Groups (G1-G7):** External services generate domain-specific data (e.g., tickets scanned, vehicles tracked) and send them as raw JSON to G8's `IngestionController` via HTTP POST.
-2. **Ingestion & MongoDB:** The `IngestionService` receives these payloads, maps them to `IncomingEvent` documents, and persists them in the `incoming_events` collection in MongoDB.
+1. **Other Groups (G1-G7, G9):** External services generate domain-specific data. Most groups send via HTTP POST to G8's `IngestionController`. G7 (vehicles) and G9 (incidents) send data via **Kafka** topics consumed by G8's Kafka listeners.
+2. **Ingestion & MongoDB:**
+   - **REST path:** The `IngestionService` receives HTTP payloads, maps them to `IncomingEvent` documents, and persists them in the `incoming_events` collection.
+   - **Kafka path:** `VehiculeKafkaListener` (topic: `g8.vehicule.status`) and `IncidentKafkaListener` (topic: `incident.analytique.topic`) parse Kafka messages, map G7/G9 fields to G8's `IncomingEvent` schema, and save directly via `EventRepository`.
 3. **Scheduler:** A background cron job (`ScheduledAnalyticsJob`) wakes up periodically (e.g., every 60 seconds) to process unprocessed events.
 4. **Snapshots (Aggregations & ML):** The scheduler triggers the Aggregation services (Trips, Revenue, etc.) to compute KPIs. It also triggers the `MlPredictionService` which queries MongoDB, formats data, sends it to the Python ML Service endpoints, and retrieves predictions. Both the computed KPIs and ML predictions are saved as `StatSnapshot` documents in the `stat_snapshots` collection via `SnapshotService.upsert()`. The `ThresholdAlertService` also runs here, sending alerts to G5 if any snapshot breaches its designated threshold.
 5. **Analytics API:** The `AnalyticsController` exposes REST endpoints (GET) to retrieve these `StatSnapshot` documents and generate aggregated Reports.

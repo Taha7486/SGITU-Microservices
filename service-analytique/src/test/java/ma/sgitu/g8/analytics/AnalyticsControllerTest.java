@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import ma.sgitu.g8.model.SnapshotType;
 import ma.sgitu.g8.repository.EventRepository;
 import ma.sgitu.g8.repository.ReportRepository;
-import ma.sgitu.g8.repository.StatSnapshotRepository;
+import ma.sgitu.g8.repository.SnapshotRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,7 +45,7 @@ class AnalyticsControllerTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private StatSnapshotRepository statSnapshotRepository;
+    private SnapshotRepository snapshotRepository;
 
     @Autowired
     private ReportRepository reportRepository;
@@ -60,7 +60,7 @@ class AnalyticsControllerTest {
     @BeforeEach
     void clearReports() {
         reportRepository.deleteAll();
-        statSnapshotRepository.deleteAll();
+        snapshotRepository.deleteAll();
         eventRepository.deleteAll();
         generatedReportId = null;
         reportPeriod = null;
