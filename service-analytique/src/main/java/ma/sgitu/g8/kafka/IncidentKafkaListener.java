@@ -55,10 +55,19 @@ public class IncidentKafkaListener {
             // Severity mapping
             String severity = mapSeverity(gravite);
 
-            // Zone derivation: "latitude,longitude"
+            // Zone derivation: Grid square grouping
+            // Rounding to 3 decimal places creates ~110m x 110m grid zones
+            // Dots replaced with underscores to avoid MongoDB map key restrictions
             String zone = null;
             if (latObj != null && lonObj != null) {
-                zone = latObj + "," + lonObj;
+                try {
+                    double lat = Double.parseDouble(latObj.toString());
+                    double lon = Double.parseDouble(lonObj.toString());
+                    zone = String.format(java.util.Locale.US, "%.3f,%.3f", lat, lon)
+                            .replace('.', '_');
+                } catch (NumberFormatException e) {
+                    zone = (latObj + "," + lonObj).replace('.', '_');
+                }
             }
 
             // Resolution minutes computation
@@ -77,6 +86,10 @@ public class IncidentKafkaListener {
 
             IncomingEvent event = IncomingEvent.builder()
                     .sourceType(SourceType.INCIDENT)
+                    .sourceId(reference)
+                    .eventType(type)
+                    .zoneId(zone)
+                    .lineId(ligneTransport)
                     .payload(payload)
                     .timestamp(eventTimestamp)
                     .receivedAt(LocalDateTime.now())

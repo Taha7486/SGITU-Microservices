@@ -53,6 +53,9 @@ public class VehiculeKafkaListener {
 
             IncomingEvent event = IncomingEvent.builder()
                     .sourceType(SourceType.VEHICLE)
+                    .sourceId(vehicleId)
+                    .eventType("VEHICLE_IN_SERVICE")
+                    .lineId(line)
                     .payload(payload)
                     .timestamp(eventTimestamp)
                     .receivedAt(LocalDateTime.now())

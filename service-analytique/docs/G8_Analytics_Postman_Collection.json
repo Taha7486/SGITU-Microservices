@@ -62,8 +62,15 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/ingestion/tickets",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "ingestion", "tickets"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ingestion",
+                "tickets"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -78,34 +85,7 @@
           }
         },
         {
-          "name": "02 - Ingest Incidents",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/ingestion/incidents",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "ingestion", "incidents"]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "[\n  {\n    \"incidentId\": \"INC-001\",\n    \"type\": \"accident\",\n    \"line\": \"L2\",\n    \"zone\": \"Z_NORTH\",\n    \"timestamp\": \"{{t_1000}}\",\n    \"severity\": \"HIGH\",\n    \"description\": \"Vehicle collision near main station\"\n  },\n  {\n    \"incidentId\": \"INC-002\",\n    \"type\": \"breakdown\",\n    \"line\": \"L1\",\n    \"zone\": \"Z_CENTER\",\n    \"timestamp\": \"{{t_1100}}\",\n    \"severity\": \"CRITICAL\",\n    \"description\": \"Engine failure on bus 404\",\n    \"resolutionMinutes\": 30\n  },\n  {\n    \"incidentId\": \"INC-003\",\n    \"type\": \"delay\",\n    \"line\": \"L3\",\n    \"zone\": \"Z_SOUTH\",\n    \"timestamp\": \"{{t_1400}}\",\n    \"severity\": \"MEDIUM\",\n    \"resolutionMinutes\": 15\n  },\n  {\n    \"incidentId\": \"INC-004\",\n    \"type\": \"accident\",\n    \"line\": \"L2\",\n    \"zone\": \"Z_NORTH\",\n    \"timestamp\": \"{{t_1530}}\",\n    \"severity\": \"MEDIUM\",\n    \"description\": \"Minor collision, road cleared\",\n    \"resolutionMinutes\": 20\n  }\n]",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "Simulates incident reports from different zones and severities. Z_NORTH will appear as a repeat-incident zone, triggering INC_05.\n\nExpected response: 201 Created with status=SUCCESS"
-          }
-        },
-        {
-          "name": "03 - Ingest Payments",
+          "name": "02 - Ingest Payments",
           "request": {
             "method": "POST",
             "header": [
@@ -116,8 +96,15 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/ingestion/payments",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "ingestion", "payments"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ingestion",
+                "payments"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -132,7 +119,7 @@
           }
         },
         {
-          "name": "04 - Ingest Subscriptions",
+          "name": "03 - Ingest Subscriptions",
           "request": {
             "method": "POST",
             "header": [
@@ -143,8 +130,15 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/ingestion/subscriptions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "ingestion", "subscriptions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ingestion",
+                "subscriptions"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -159,34 +153,7 @@
           }
         },
         {
-          "name": "05 - Ingest Vehicles",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/ingestion/vehicles",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "ingestion", "vehicles"]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "[\n  {\n    \"vehicleId\": \"BUS_101\",\n    \"status\": \"in_service\",\n    \"line\": \"L1\",\n    \"zone\": \"Z_CENTER\",\n    \"timestamp\": \"{{t_0800}}\",\n    \"speed\": 42.5,\n    \"occupancy\": 80,\n    \"delayMinutes\": 0\n  },\n  {\n    \"vehicleId\": \"BUS_202\",\n    \"status\": \"in_service\",\n    \"line\": \"L2\",\n    \"zone\": \"Z_NORTH\",\n    \"timestamp\": \"{{t_0805}}\",\n    \"speed\": 35.0,\n    \"occupancy\": 120,\n    \"delayMinutes\": 8\n  },\n  {\n    \"vehicleId\": \"TRAM_01\",\n    \"status\": \"out_of_service\",\n    \"line\": \"T1\",\n    \"zone\": \"Z_EAST\",\n    \"timestamp\": \"{{t_0900}}\",\n    \"speed\": 0.0,\n    \"alertCode\": \"ENG_TEMP_HIGH\"\n  },\n  {\n    \"vehicleId\": \"BUS_303\",\n    \"status\": \"in_service\",\n    \"line\": \"L3\",\n    \"zone\": \"Z_SOUTH\",\n    \"timestamp\": \"{{t_1000}}\",\n    \"speed\": 50.0,\n    \"occupancy\": 45,\n    \"delayMinutes\": 2\n  },\n  {\n    \"vehicleId\": \"BUS_404\",\n    \"status\": \"in_service\",\n    \"line\": \"L1\",\n    \"zone\": \"Z_WEST\",\n    \"timestamp\": \"{{t_1100}}\",\n    \"speed\": 38.0,\n    \"occupancy\": 95,\n    \"delayMinutes\": 5\n  }\n]",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "NOTE: In production, G7 sends vehicle data via Kafka. This REST endpoint is for testing only.\n\nSimulates telemetry from active buses and one tram in maintenance. BUS_202 is overcapacity (occupancy=120) and will affect VEH_03.\n\nExpected response: 201 Created with status=SUCCESS"
-          }
-        },
-        {
-          "name": "06 - Ingest Users",
+          "name": "04 - Ingest Users",
           "request": {
             "method": "POST",
             "header": [
@@ -197,8 +164,15 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/ingestion/users",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "ingestion", "users"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ingestion",
+                "users"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -215,6 +189,144 @@
       ]
     },
     {
+      "name": "--- PHASE 2: Kafka Simulation (G7 & G9) ---",
+      "description": "Simulates Kafka messages from G7 (vehicles) and G9 (incidents) directly into the listeners.\n\nThese endpoints are only active when SPRING_PROFILES_ACTIVE != prod.\nThey bypass the Kafka broker entirely and call the listener methods directly — functionally identical to receiving a real message.",
+      "item": [
+        {
+          "name": "20 - Vehicle Event from G7 (CLOTURE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/test/kafka/vehicule",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "test",
+                "kafka",
+                "vehicule"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": \"BUS_404\",\n  \"line\": \"L1\",\n  \"status\": \"ACTIVE\",\n  \"speed\": 45.2,\n  \"delayMinutes\": 2,\n  \"timestamp\": \"2026-05-07T10:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Simulates a Kafka message from G7 on topic g8.vehicule.status.\n\nExpected: 200 OK — \"Vehicle Kafka event simulated successfully\"\nExpected MongoDB: new IncomingEvent with sourceType=VEHICLE containing vehicleId, line, status, speed, delayMinutes."
+          }
+        },
+        {
+          "name": "21 - Incident CLOTURE from G9 (Should be saved)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/test/kafka/incident",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "test",
+                "kafka",
+                "incident"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"INC-2026-TEST\",\n  \"source\": \"IOT\",\n  \"type\": \"PANNE_VEHICULE\",\n  \"gravite\": \"CRITIQUE\",\n  \"statut\": \"CLOTURE\",\n  \"vehiculeId\": \"BUS_404\",\n  \"ligneTransport\": \"Ligne 15\",\n  \"declarantId\": 0,\n  \"responsableId\": 42,\n  \"description\": \"Surchauffe du moteur d\\u00e9tect\\u00e9e par le capteur thermique.\",\n  \"latitude\": 33.57311,\n  \"longitude\": -7.589843,\n  \"dateSignalement\": \"2026-05-06T14:30:00\",\n  \"dateIncident\": \"2026-05-06T14:28:00\",\n  \"dateResolution\": \"2026-05-06T16:45:00\",\n  \"dateLimiteResolution\": \"2026-05-06T16:30:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Simulates a resolved incident from G9 on topic incident.analytique.topic.\n\nTransformations applied by IncidentKafkaListener:\n- gravite CRITIQUE → severity CRITICAL\n- zone = \"33.573,-7.590\" (rounded to 3dp, ~110m grid)\n- resolutionMinutes = Duration(14:28 → 16:45) = 137 min\n\nExpected: 200 OK — \"Incident Kafka event simulated successfully\"\nExpected MongoDB: new IncomingEvent with sourceType=INCIDENT, severity=CRITICAL, resolutionMinutes=137, zone=\"33.573,-7.590\""
+          }
+        },
+        {
+          "name": "22 - Incident EN_COURS from G9 (Should be IGNORED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/test/kafka/incident",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "test",
+                "kafka",
+                "incident"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"INC-2026-IGNORED\",\n  \"source\": \"IOT\",\n  \"type\": \"PANNE_VEHICULE\",\n  \"gravite\": \"CRITIQUE\",\n  \"statut\": \"EN_COURS\",\n  \"vehiculeId\": \"BUS_404\",\n  \"ligneTransport\": \"Ligne 15\",\n  \"declarantId\": 0,\n  \"responsableId\": 42,\n  \"description\": \"This should be ignored \\u2014 not a final status\",\n  \"latitude\": 33.57311,\n  \"longitude\": -7.589843,\n  \"dateSignalement\": \"2026-05-06T14:30:00\",\n  \"dateIncident\": \"2026-05-06T14:28:00\",\n  \"dateResolution\": \"2026-05-06T16:45:00\",\n  \"dateLimiteResolution\": \"2026-05-06T16:30:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Tests the statut filter: only CLOTURE and ANNULE are accepted.\n\nExpected: 200 OK (listener handles it gracefully without crashing)\nExpected MongoDB: NO new document saved for this reference\nCheck logs for: \"Incident event ignored because status is not final: statut=EN_COURS\""
+          }
+        },
+        {
+          "name": "23 - Malformed JSON Vehicle Event (Error Resilience)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/test/kafka/vehicule",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "test",
+                "kafka",
+                "vehicule"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "this is not valid json {{{",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            },
+            "description": "Tests error resilience: the listener must catch JsonProcessingException and NOT crash.\n\nA bad Kafka message must never kill the consumer thread.\n\nExpected: 500 Internal Server Error (the controller catches and surfaces the error)\nExpected: Service continues running normally — all subsequent calls still work\nCheck logs for: JsonProcessingException"
+          }
+        }
+      ]
+    },
+    {
       "name": "--- WAIT ~60 SECONDS FOR SCHEDULER ---",
       "item": [
         {
@@ -224,8 +336,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/analytics/dashboard",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "analytics", "dashboard"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "dashboard"
+              ]
             },
             "description": "Send this immediately after ingesting to confirm the service is alive. The values will still be zero until the scheduler runs (every 60 seconds). After ~60 seconds, re-send this request and the values should reflect your ingested data."
           }
@@ -233,7 +352,7 @@
       ]
     },
     {
-      "name": "--- PHASE 2: Read Analytics ---",
+      "name": "--- PHASE 3: Read Analytics ---",
       "item": [
         {
           "name": "08 - GET Dashboard (All Snapshots)",
@@ -242,8 +361,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/analytics/dashboard",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "analytics", "dashboard"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "dashboard"
+              ]
             },
             "description": "Returns ALL current snapshots in one call. This is the main dashboard endpoint used by G10.\n\nExpected: 200 OK with an array of all StatSnapshot documents (FREQ_01 through SUB_05)."
           }
@@ -255,8 +381,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/analytics/trips/summary",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "analytics", "trips", "summary"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "trips",
+                "summary"
+              ]
             },
             "description": "Returns only TRIPS snapshots (FREQ_01 through FREQ_07):\n- FREQ_01: Total validations count\n- FREQ_02: Peak hour distribution map\n- FREQ_03: Peak hours list\n- FREQ_04: Avg daily passengers\n- FREQ_05: Line usage ranking\n- FREQ_06: Station footfall\n- FREQ_07: Weekend vs weekday ratio"
           }
@@ -268,8 +402,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/analytics/revenue/summary",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "analytics", "revenue", "summary"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "revenue",
+                "summary"
+              ]
             },
             "description": "Returns REVENUE snapshots (REV_01 through REV_05):\n- REV_01: Total revenue\n- REV_02: Revenue by ticket type\n- REV_03: Avg revenue per passenger\n- REV_04: Payment method breakdown (CARD vs CASH)\n- REV_05: Revenue trend"
           }
@@ -281,8 +423,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/analytics/incidents/stats",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "analytics", "incidents", "stats"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "incidents",
+                "stats"
+              ]
             },
             "description": "Returns INCIDENTS snapshots (INC_01 through INC_05):\n- INC_01: Total incidents count\n- INC_02: Incidents by type (accident, breakdown, delay)\n- INC_03: Incidents by zone\n- INC_04: Average resolution time in minutes\n- INC_05: Repeat incident zones (zones with more than 1 incident)"
           }
@@ -294,8 +444,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/analytics/vehicles/activity",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "analytics", "vehicles", "activity"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "vehicles",
+                "activity"
+              ]
             },
             "description": "Returns VEHICLES snapshots (VEH_01 through VEH_05):\n- VEH_01: Active vehicle count\n- VEH_02: Average punctuality rate (%)\n- VEH_03: Delay distribution / overcapacity count\n- VEH_04: Vehicle utilization rate\n- VEH_05: Average speed by line"
           }
@@ -307,8 +465,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/analytics/subscriptions/stats",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "analytics", "subscriptions", "stats"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "subscriptions",
+                "stats"
+              ]
             },
             "description": "Returns SUBSCRIPTIONS snapshots (SUB_01 through SUB_05):\n- SUB_01: Active subscriptions count\n- SUB_02: New subscriptions today\n- SUB_03: Renewal rate\n- SUB_04: Churn rate (%)\n- SUB_05: Subscription type distribution"
           }
@@ -320,8 +486,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/analytics/users/stats",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "analytics", "users", "stats"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "users",
+                "stats"
+              ]
             },
             "description": "Returns USERS snapshots."
           }
@@ -329,7 +503,7 @@
       ]
     },
     {
-      "name": "--- PHASE 3: Generate Report ---",
+      "name": "--- PHASE 4: Generate Report ---",
       "item": [
         {
           "name": "15 - POST Generate Report",
@@ -358,8 +532,16 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/analytics/reports/generate",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "analytics", "reports", "generate"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "reports",
+                "generate"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -380,8 +562,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/analytics/reports/{{reportId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "analytics", "reports", "{{reportId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "reports",
+                "{{reportId}}"
+              ]
             },
             "description": "Retrieves the report generated in request 15 using the {{reportId}} variable that was automatically saved.\n\nExpected: 200 OK with the full Report object.\nIf you get 404, make sure you ran request 15 first so the reportId variable is populated."
           }
@@ -389,7 +579,7 @@
       ]
     },
     {
-      "name": "--- PHASE 4: Error / Edge Cases ---",
+      "name": "--- PHASE 5: Error / Edge Cases ---",
       "item": [
         {
           "name": "17 - Ingest Empty Batch (Expect 400)",
@@ -403,8 +593,15 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/ingestion/tickets",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "ingestion", "tickets"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ingestion",
+                "tickets"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -430,8 +627,15 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/ingestion/tickets",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "ingestion", "tickets"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ingestion",
+                "tickets"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -452,126 +656,22 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/analytics/reports/000000000000000000000000",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "analytics", "reports", "000000000000000000000000"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "reports",
+                "000000000000000000000000"
+              ]
             },
             "description": "Attempts to fetch a report using a valid-format but non-existent MongoDB ID.\n\nExpected: 404 Not Found"
           }
         }
       ]
-    },
-    {
-      "name": "--- PHASE 5: Kafka Mock Tests ---",
-      "item": [
-        {
-          "name": "20 - Kafka Vehicle Event (G7)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/test/kafka/vehicule",
-              "host": ["{{baseUrl}}"],
-              "path": ["test", "kafka", "vehicule"]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"vehicleId\": \"BUS_404\",\n  \"line\": \"L1\",\n  \"status\": \"ACTIVE\",\n  \"speed\": 45.2,\n  \"delayMinutes\": 2,\n  \"timestamp\": \"2026-05-07T10:00:00\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "Simulates a Kafka message from G7 (Suivi des véhicules) on topic g8.vehicule.status.\n\nThis directly invokes VehiculeKafkaListener.handleVehiculeEvent() — no real Kafka broker needed.\n\nExpected: 200 OK with \"Vehicle Kafka event simulated successfully\"\nExpected: New IncomingEvent in MongoDB with sourceType=VEHICLE and payload containing vehicleId, line, status, speed, delayMinutes."
-          }
-        },
-        {
-          "name": "21 - Kafka Incident CLOTURE (G9)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/test/kafka/incident",
-              "host": ["{{baseUrl}}"],
-              "path": ["test", "kafka", "incident"]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reference\": \"INC-2026-TEST\",\n  \"source\": \"IOT\",\n  \"type\": \"PANNE_VEHICULE\",\n  \"gravite\": \"CRITIQUE\",\n  \"statut\": \"CLOTURE\",\n  \"vehiculeId\": \"BUS_404\",\n  \"ligneTransport\": \"Ligne 15\",\n  \"declarantId\": 0,\n  \"responsableId\": 42,\n  \"description\": \"Surchauffe du moteur détectée par le capteur thermique.\",\n  \"latitude\": 33.573110,\n  \"longitude\": -7.589843,\n  \"dateSignalement\": \"2026-05-06T14:30:00\",\n  \"dateIncident\": \"2026-05-06T14:28:00\",\n  \"dateResolution\": \"2026-05-06T16:45:00\",\n  \"dateLimiteResolution\": \"2026-05-06T16:30:00\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "Simulates a Kafka message from G9 (Gestion des incidents) on topic incident.analytique.topic.\n\nThis is a CLOTURE (resolved) incident — it SHOULD be saved.\n\nField mapping applied:\n- gravite CRITIQUE → severity CRITICAL\n- zone derived as \"33.57311,-7.589843\"\n- resolutionMinutes = Duration(14:28 → 16:45) = 137 minutes\n\nExpected: 200 OK with \"Incident Kafka event simulated successfully\"\nExpected: New IncomingEvent in MongoDB with sourceType=INCIDENT, payload.severity=CRITICAL, payload.resolutionMinutes=137."
-          }
-        },
-        {
-          "name": "22 - Kafka Incident EN_COURS (G9 - Should be Ignored)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/test/kafka/incident",
-              "host": ["{{baseUrl}}"],
-              "path": ["test", "kafka", "incident"]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reference\": \"INC-2026-IGNORED\",\n  \"source\": \"IOT\",\n  \"type\": \"PANNE_VEHICULE\",\n  \"gravite\": \"CRITIQUE\",\n  \"statut\": \"EN_COURS\",\n  \"vehiculeId\": \"BUS_404\",\n  \"ligneTransport\": \"Ligne 15\",\n  \"declarantId\": 0,\n  \"responsableId\": 42,\n  \"description\": \"This should be ignored\",\n  \"latitude\": 33.573110,\n  \"longitude\": -7.589843,\n  \"dateSignalement\": \"2026-05-06T14:30:00\",\n  \"dateIncident\": \"2026-05-06T14:28:00\",\n  \"dateResolution\": \"2026-05-06T16:45:00\",\n  \"dateLimiteResolution\": \"2026-05-06T16:30:00\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "Tests the status filter: statut=EN_COURS is NOT a final status (only CLOTURE and ANNULE are accepted).\n\nExpected: 200 OK (the listener handles it gracefully)\nExpected: NO new document in MongoDB — the event is logged as a warning and skipped.\nCheck service logs for: \"Incident event ignored because status is not final: statut=EN_COURS\""
-          }
-        },
-        {
-          "name": "23 - Kafka Invalid JSON (Error Resilience)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/test/kafka/vehicule",
-              "host": ["{{baseUrl}}"],
-              "path": ["test", "kafka", "vehicule"]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "this is not valid json {{{",
-              "options": {
-                "raw": {
-                  "language": "text"
-                }
-              }
-            },
-            "description": "Tests error resilience: sends malformed JSON to the vehicle Kafka listener.\n\nThe listener catches JsonProcessingException internally and logs the error. It never throws — a bad Kafka message must not kill the listener.\n\nExpected: 200 OK (error is caught inside the listener, not propagated to the controller)\nExpected: Service continues running normally after this call.\nExpected: Error logged in service logs."
-          }
-        }
-      ]
     }
+    
   ]
 }

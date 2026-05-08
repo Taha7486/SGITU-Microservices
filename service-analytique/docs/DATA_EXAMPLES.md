@@ -23,8 +23,8 @@ This document serves as the comprehensive reference for all data structures flow
 | `GET` | `/api/v1/analytics/reports/{id}` | Retrieve a generated report by ID |
 | `POST` | `/predict/peak-hours` | (ML Service) Predict future peak hours |
 | `POST` | `/predict/incidents` | (ML Service) Predict high-risk incident zones |
-| `POST` | `/test/kafka/vehicule` | ⚙️ Mock — Simulate G7 vehicle Kafka event |
-| `POST` | `/test/kafka/incident` | ⚙️ Mock — Simulate G9 incident Kafka event |
+| `POST` | `/test/kafka/vehicule` | ⚙️ Simulate G7 vehicle Kafka event (dev/test only — disabled in prod) |
+| `POST` | `/test/kafka/incident` | ⚙️ Simulate G9 incident Kafka event (dev/test only — disabled in prod) |
 
 ---
 
@@ -113,6 +113,11 @@ This document serves as the comprehensive reference for all data structures flow
 
 ### VEHICLE
 **POST `/api/v1/ingestion/vehicles`**
+
+> [!NOTE]
+> In production, vehicle data arrives exclusively via **Kafka** (topic `g8.vehicule.status`) from G7.
+> This REST endpoint is retained for backward compatibility and direct testing.
+
 ```json
 [
   {
@@ -141,6 +146,11 @@ This document serves as the comprehensive reference for all data structures flow
 
 ### INCIDENT
 **POST `/api/v1/ingestion/incidents`**
+
+> [!NOTE]
+> In production, incident data arrives exclusively via **Kafka** (topic `incident.analytique.topic`) from G9.
+> This REST endpoint is retained for backward compatibility and direct testing.
+
 ```json
 [
   {
@@ -306,7 +316,7 @@ G9 sends resolved/cancelled incident events:
 | `reference` | `incidentId` | String | Direct copy |
 | `type` | `type` | String | Direct copy (PANNE_VEHICULE, ACCIDENT, etc.) |
 | `gravite` | `severity` | String | FAIBLE→LOW, MOYEN→MEDIUM, ELEVE→HIGH, CRITIQUE→CRITICAL |
-| `latitude` + `longitude` | `zone` | String | Derived as `"latitude,longitude"` (e.g., `"33.57311,-7.589843"`) |
+| `latitude` + `longitude` | `zone` | String | Rounded to **3 decimal places**, dots replaced with underscores (e.g., `"33_573,-7_590"`) to form ~110m grid zones compatible with MongoDB map keys |
 | `statut` | `status` | String | Direct copy (CLOTURE or ANNULE only) |
 | `ligneTransport` | `line` | String | Direct copy |
 | `dateIncident` + `dateResolution` | `resolutionMinutes` | Integer | `Duration.between(dateIncident, dateResolution).toMinutes()` |
@@ -320,7 +330,7 @@ G9 sends resolved/cancelled incident events:
     "incidentId": "INC-2026-ABCD",
     "type": "PANNE_VEHICULE",
     "severity": "CRITICAL",
-    "zone": "33.57311,-7.589843",
+    "zone": "33_573,-7_590",
     "status": "CLOTURE",
     "line": "Ligne 15",
     "resolutionMinutes": 137
@@ -339,7 +349,7 @@ curl -X POST http://localhost:8088/test/kafka/incident \
 ```
 Expected: `200 OK` — `"Incident Kafka event simulated successfully"`
 
-> **Note:** The REST endpoints `POST /api/v1/ingestion/vehicles` and `POST /api/v1/ingestion/incidents` remain available for direct testing/backward compatibility. In production, G7 and G9 will send data exclusively via Kafka.
+
 
 ---
 
@@ -406,44 +416,48 @@ Expected: `200 OK` — `"Incident Kafka event simulated successfully"`
 }
 ```
 
-**VEHICLE Event**
+**VEHICLE Event** *(from Kafka — G7)*
 ```json
 {
   "_id": { "$oid": "6634d1b8c2c1a84f3d1b8a15" },
   "sourceType": "VEHICLE",
   "sourceId": "BUS_404",
-  "eventType": "TELEMETRY_UPDATE",
+  "eventType": "VEHICLE_IN_SERVICE",
   "payload": {
+    "vehicleId": "BUS_404",
+    "line": "L1",
     "status": "ACTIVE",
     "speed": 45.2,
-    "occupancy": 85,
     "delayMinutes": 2
   },
-  "timestamp": { "$date": "2026-05-03T11:00:00Z" },
-  "receivedAt": { "$date": "2026-05-03T11:00:00Z" },
+  "timestamp": { "$date": "2026-05-07T10:00:00Z" },
+  "receivedAt": { "$date": "2026-05-07T22:58:44.784Z" },
   "lineId": "L1",
-  "zoneId": "Z_CENTER",
-  "processed": true
+  "zoneId": null,
+  "processed": false
 }
 ```
 
-**INCIDENT Event**
+**INCIDENT Event** *(from Kafka — G9)*
 ```json
 {
   "_id": { "$oid": "6634d1b8c2c1a84f3d1b8a16" },
   "sourceType": "INCIDENT",
-  "sourceId": "SYS_MONITOR",
-  "eventType": "INCIDENT_REPORTED",
+  "sourceId": "INC-2026-ABCD",
+  "eventType": "PANNE_VEHICULE",
   "payload": {
-    "incidentId": "INC-1001",
-    "severity": "HIGH",
-    "description": "Traffic accident blocking bus lane",
-    "resolutionMinutes": null
+    "incidentId": "INC-2026-ABCD",
+    "type": "PANNE_VEHICULE",
+    "severity": "CRITICAL",
+    "zone": "33_573,-7_590",
+    "status": "CLOTURE",
+    "line": "Ligne 15",
+    "resolutionMinutes": 137
   },
-  "timestamp": { "$date": "2026-05-03T12:00:00Z" },
-  "receivedAt": { "$date": "2026-05-03T12:00:03Z" },
-  "lineId": "L2",
-  "zoneId": "Z_NORTH",
+  "timestamp": { "$date": "2026-05-06T14:28:00Z" },
+  "receivedAt": { "$date": "2026-05-07T22:59:06.257Z" },
+  "lineId": "Ligne 15",
+  "zoneId": "33_573,-7_590",
   "processed": false
 }
 ```
@@ -639,7 +653,7 @@ Expected: `200 OK` — `"Incident Kafka event simulated successfully"`
   "granularity": "WEEK",
   "period": "2026-05-02/2026-05-08",
   "value": 3.0,
-  "metadata": { "id": "INC_02", "data": { "INCIDENT_DELAY": 1, "INCIDENT_BREAKDOWN": 1, "INCIDENT_ACCIDENT": 2 } },
+  "metadata": { "id": "INC_02", "data": { "PANNE_VEHICULE": 2, "ACCIDENT": 1 } },
   "computedAt": "2026-05-08T01:00:14.785",
   "prediction": false
 }
@@ -651,7 +665,7 @@ Expected: `200 OK` — `"Incident Kafka event simulated successfully"`
   "granularity": "WEEK",
   "period": "2026-05-02/2026-05-08",
   "value": 3.0,
-  "metadata": { "id": "INC_03", "data": { "Z_CENTER": 1, "Z_SOUTH": 1, "Z_NORTH": 2 } },
+  "metadata": { "id": "INC_03", "data": { "33_573,-7_590": 2, "33_585,-7_612": 1, "33_562,-7_544": 1 } },
   "computedAt": "2026-05-08T01:00:14.797",
   "prediction": false
 }
@@ -675,7 +689,7 @@ Expected: `200 OK` — `"Incident Kafka event simulated successfully"`
   "granularity": "MONTH",
   "period": "2026-05",
   "value": 1.0,
-  "metadata": { "id": "INC_05", "data": { "Z_NORTH": 2 } },
+  "metadata": { "id": "INC_05", "data": { "33_573,-7_590": 2 } },
   "computedAt": "2026-05-08T01:00:14.821",
   "prediction": false
 }
@@ -844,13 +858,13 @@ Expected: `200 OK` — `"Incident Kafka event simulated successfully"`
   "value": null,
   "metadata": {
     "at_risk_zones": [
-      { "zone": "Z_CENTER", "riskScore": 1.0, "riskLevel": "HIGH" },
-      { "zone": "Z_NORTH", "riskScore": 0.65, "riskLevel": "MEDIUM" },
-      { "zone": "Z_EAST", "riskScore": 0.2, "riskLevel": "LOW" }
+      { "zone": "33_573,-7_590", "riskScore": 1.0, "riskLevel": "HIGH" },
+      { "zone": "33_585,-7_612", "riskScore": 0.65, "riskLevel": "MEDIUM" },
+      { "zone": "33_562,-7_544", "riskScore": 0.2, "riskLevel": "LOW" }
     ],
-    "generatedAt": "2026-05-03T14:30:01.456"
+    "generatedAt": "2026-05-08T12:43:19.091232"
   },
-  "computedAt": { "$date": "2026-05-03T14:30:01Z" },
+  "computedAt": { "$date": "2026-05-08T12:43:19Z" },
   "prediction": true
 }
 ```
@@ -1210,14 +1224,10 @@ Expected: `200 OK` — `"Incident Kafka event simulated successfully"`
 ```json
 {
   "data": [
-    { "zone": "Z_CENTER", "incidentCount": 5, "severity": "HIGH" },
-    { "zone": "Z_NORTH", "incidentCount": 2, "severity": "CRITICAL" },
-    { "zone": "Z_SOUTH", "incidentCount": 1, "severity": "MEDIUM" },
-    { "zone": "Z_WEST", "incidentCount": 8, "severity": "LOW" },
-    { "zone": "Z_EAST", "incidentCount": 0, "severity": "LOW" },
-    { "zone": "Z_AIRPORT", "incidentCount": 1, "severity": "HIGH" },
-    { "zone": "Z_UNIVERSITY", "incidentCount": 3, "severity": "MEDIUM" },
-    { "zone": "Z_INDUSTRIAL", "incidentCount": 2, "severity": "HIGH" }
+    { "zone": "33_573,-7_590", "incidentCount": 5, "severity": "CRITICAL" },
+    { "zone": "33_585,-7_612", "incidentCount": 2, "severity": "HIGH" },
+    { "zone": "33_562,-7_544", "incidentCount": 1, "severity": "MEDIUM" },
+    { "zone": "33_600,-7_630", "incidentCount": 3, "severity": "HIGH" }
   ]
 }
 ```
@@ -1226,16 +1236,12 @@ Expected: `200 OK` — `"Incident Kafka event simulated successfully"`
 ```json
 {
   "at_risk_zones": [
-    { "zone": "Z_CENTER", "riskScore": 1.0, "riskLevel": "HIGH" },
-    { "zone": "Z_NORTH", "riskScore": 0.533, "riskLevel": "MEDIUM" },
-    { "zone": "Z_WEST", "riskScore": 0.533, "riskLevel": "MEDIUM" },
-    { "zone": "Z_UNIVERSITY", "riskScore": 0.4, "riskLevel": "MEDIUM" },
-    { "zone": "Z_INDUSTRIAL", "riskScore": 0.4, "riskLevel": "MEDIUM" },
-    { "zone": "Z_AIRPORT", "riskScore": 0.2, "riskLevel": "LOW" },
-    { "zone": "Z_SOUTH", "riskScore": 0.133, "riskLevel": "LOW" },
-    { "zone": "Z_EAST", "riskScore": 0.0, "riskLevel": "LOW" }
+    { "zone": "33_573,-7_590", "riskScore": 1.0, "riskLevel": "HIGH" },
+    { "zone": "33_600,-7_630", "riskScore": 0.533, "riskLevel": "MEDIUM" },
+    { "zone": "33_585,-7_612", "riskScore": 0.4, "riskLevel": "MEDIUM" },
+    { "zone": "33_562,-7_544", "riskScore": 0.133, "riskLevel": "LOW" }
   ],
-  "generatedAt": "2026-05-03T14:30:01.456"
+  "generatedAt": "2026-05-08T12:43:19.091232"
 }
 ```
 
