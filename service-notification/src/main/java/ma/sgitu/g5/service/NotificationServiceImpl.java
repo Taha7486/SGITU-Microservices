@@ -8,6 +8,7 @@ import ma.sgitu.g5.dto.response.SendResultDTO;
 import ma.sgitu.g5.entity.Notification;
 import ma.sgitu.g5.entity.NotificationStatus;
 import ma.sgitu.g5.entity.NotificationType;
+import ma.sgitu.g5.mapper.NotificationMapper;
 import ma.sgitu.g5.repository.NotificationRepository;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class NotificationServiceImpl implements INotificationService {
     private final ITemplateService templateService;
     private final IChannelRouter channelRouter;
     private final IRetryService retryService;
+    private final NotificationMapper notificationMapper;
 
     @Override
     @Transactional
@@ -51,7 +53,11 @@ public class NotificationServiceImpl implements INotificationService {
         String message = templateService.hydrateMessage(dto.getEventType(), dto.getMetadata());
         String subject = templateService.hydrateSubject(dto.getEventType(), dto.getMetadata());
 
-        Notification entity = buildEntity(dto, notificationId, subject, message);
+        // ── MapStruct : conversion automatique DTO → Entité ──────────────
+        Notification entity = notificationMapper.toEntity(dto);
+        entity.setNotificationId(notificationId);
+        entity.setSubject(subject);
+        entity.setContent(message);
         notificationRepository.save(entity);
 
         dispatchAsync(entity, dto, subject, message);
@@ -126,48 +132,6 @@ public class NotificationServiceImpl implements INotificationService {
         notificationRepository.save(entity);
     }
 
-    private Notification buildEntity(NotificationRequestDTO dto, String id, String subject, String msg) {
-        Notification n = new Notification();
-        n.setNotificationId(id);
-        n.setSourceService(dto.getSourceService());
-        n.setEventType(dto.getEventType());
-        n.setChannel(dto.getChannel());
-        
-        // Sécurisation de la conversion Enum
-        try {
-            n.setType(NotificationType.valueOf(dto.getChannel().toUpperCase()));
-        } catch (Exception e) {
-            log.warn("Canal inconnu {}, repli sur EMAIL", dto.getChannel());
-            n.setType(NotificationType.EMAIL);
-        }
-
-        n.setPriority(dto.getPriority() != null ? dto.getPriority() : "NORMAL");
-        
-        if (dto.getRecipient() != null) {
-            n.setUserId(dto.getRecipient().getUserId());
-            n.setEmail(dto.getRecipient().getEmail());
-            n.setPhone(dto.getRecipient().getPhone());
-            n.setDeviceToken(dto.getRecipient().getDeviceToken());
-            n.setRecipient(resolveRecipientString(dto.getRecipient(), dto.getChannel()));
-        }
-        
-        n.setSubject(subject);
-        n.setContent(msg);
-        n.setStatus(NotificationStatus.PENDING);
-        n.setCreatedAt(LocalDateTime.now());
-        return n;
-    }
-
-    private String resolveRecipientString(ma.sgitu.g5.dto.request.RecipientDTO r, String channel) {
-        String res = switch (channel) {
-            case "EMAIL" -> r.getEmail();
-            case "SMS" -> r.getPhone();
-            case "PUSH" -> r.getDeviceToken();
-            default -> "unknown";
-        };
-        return res != null ? res : "unresolved";
-    }
-
     private NotificationRequestDTO rebuildDtoFromEntity(Notification entity) {
         NotificationRequestDTO dto = new NotificationRequestDTO();
         dto.setNotificationId(entity.getNotificationId());
@@ -185,6 +149,7 @@ public class NotificationServiceImpl implements INotificationService {
     }
 
     private NotificationResponseDTO buildResponse(String id, String status, String msg, String ch) {
+        // ── MapStruct : on réutilise toResponseDTO pour les cas simples ──────
         NotificationResponseDTO r = new NotificationResponseDTO();
         r.setNotificationId(id);
         r.setStatus(status);
