@@ -50,7 +50,7 @@
 							"raw": "{\n  \"username\": \"gestionnaire.reseau\",\n  \"password\": \"password\"\n}"
 						},
 						"url": "{{baseUrl}}/api/auth/login",
-						"description": "Comptes démo (mot de passe : password) : gestionnaire.reseau = G4_OPERATOR (réseau), gestionnaire.flotte = G4_DISPATCHER (flotte), admin.technique = G4_ADMIN (supervision + tout), g10.integration = gateway."
+						"description": "Comptes démo (password) alignés G3 : gestionnaire.reseau = ROLE_OPERATOR, gestionnaire.flotte = ROLE_DISPATCHER, admin.technique = ROLE_ADMIN_G4, g10.integration = ROLE_ADMIN. Voir docs/ROLES_G3_G4_ALIGNMENT.md"
 					}
 				}
 			]

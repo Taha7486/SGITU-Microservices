@@ -10,6 +10,11 @@ import com.sgitu.g4.dto.DetectIncidentRequest;
 import com.sgitu.g4.entity.CoordinationEventStatus;
 import com.sgitu.g4.entity.CoordinationEventType;
 import com.sgitu.g4.service.CoordinationEventService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -66,6 +71,14 @@ public class CoordinationEventController {
 
 	@PostMapping("/detect-deviation")
 	@ResponseStatus(HttpStatus.CREATED)
+	@Operation(summary = "Détecter une déviation (n'interrompt pas la mission)")
+	@ApiResponses({
+			@ApiResponse(responseCode = "201", description = "Événement DEVIATION créé"),
+			@ApiResponse(responseCode = "404", description = "Mission introuvable")
+	})
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+			{"missionId": 1, "ecartMetres": 450, "details": "Écart par rapport au tracé prévu"}
+			""")))
 	public CoordinationEventResponse detectDeviation(@Valid @RequestBody DetectDeviationRequest request) {
 		return coordinationEventService.detectDeviation(request);
 	}

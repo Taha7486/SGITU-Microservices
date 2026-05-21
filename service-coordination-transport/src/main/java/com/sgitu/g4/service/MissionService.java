@@ -10,6 +10,7 @@ import com.sgitu.g4.entity.Mission;
 import com.sgitu.g4.entity.StatutMission;
 import com.sgitu.g4.entity.Trajet;
 import com.sgitu.g4.exception.BadRequestException;
+import com.sgitu.g4.exception.ConflictException;
 import com.sgitu.g4.exception.ForbiddenOperationException;
 import com.sgitu.g4.exception.ResourceNotFoundException;
 import com.sgitu.g4.integration.G1BilletterieClient;
@@ -46,6 +47,7 @@ public class MissionService {
 
 	@Transactional
 	public MissionResponse create(MissionRequest request) {
+		assertVehicleAvailableForActiveMission(request.getVehiculeId().trim(), null, request.getStatut());
 		Ligne ligne = ligneRepository.findById(request.getLigneId())
 				.orElseThrow(() -> new ResourceNotFoundException("Ligne introuvable : " + request.getLigneId()));
 		Trajet trajet = resolveTrajet(request.getTrajetId(), ligne);
@@ -99,6 +101,7 @@ public class MissionService {
 			throw new ForbiddenOperationException("Mission terminée ou annulée");
 		}
 		StatutMission oldStatus = mission.getStatut();
+		assertVehicleAvailableForActiveMission(request.getVehiculeId().trim(), id, request.getStatut());
 		Ligne ligne = ligneRepository.findById(request.getLigneId())
 				.orElseThrow(() -> new ResourceNotFoundException("Ligne introuvable : " + request.getLigneId()));
 		mission.setVehiculeId(request.getVehiculeId().trim());
@@ -213,6 +216,19 @@ public class MissionService {
 			throw new BadRequestException("Affectation hors ligne");
 		}
 		return aff;
+	}
+
+	private void assertVehicleAvailableForActiveMission(String vehiculeId, Long excludeMissionId, StatutMission targetStatut) {
+		if (targetStatut != StatutMission.EN_COURS) {
+			return;
+		}
+		boolean conflict = excludeMissionId == null
+				? missionRepository.existsByVehiculeIdAndStatut(vehiculeId, StatutMission.EN_COURS)
+				: missionRepository.existsByVehiculeIdAndStatutAndIdNot(vehiculeId, StatutMission.EN_COURS, excludeMissionId);
+		if (conflict) {
+			throw new ConflictException(
+					"Le véhicule " + vehiculeId + " est déjà affecté à une mission EN_COURS");
+		}
 	}
 
 	private static String trimToNull(String value) {

@@ -30,6 +30,11 @@ public class GlobalExceptionHandler {
 		return build(HttpStatus.BAD_REQUEST, "BAD_REQUEST", ex.getMessage(), req, null);
 	}
 
+	@ExceptionHandler(ConflictException.class)
+	public ResponseEntity<ApiErrorResponse> conflict(ConflictException ex, HttpServletRequest req) {
+		return build(HttpStatus.CONFLICT, "CONFLICT", ex.getMessage(), req, null);
+	}
+
 	@ExceptionHandler(ForbiddenOperationException.class)
 	public ResponseEntity<ApiErrorResponse> forbiddenOp(ForbiddenOperationException ex, HttpServletRequest req) {
 		return build(HttpStatus.FORBIDDEN, "FORBIDDEN", ex.getMessage(), req, null);
