@@ -14,6 +14,8 @@ services:
       SERVER_PORT: 8083
       JWT_SECRET: ${JWT_SECRET:-SGITU_G3_JWT_SECRET_KEY_CHANGE_ME_IN_PRODUCTION_256BITS!!}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
       # G8 — Analyse & données: ask them for their container name and port
       G8_BASE_URL: ${G8_BASE_URL:-}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -21,6 +23,8 @@ services:
       users-db:
         condition: service_healthy
       kafka:
+        condition: service_started
+      redis:
         condition: service_started
     networks:
       - sgitu-network
@@ -62,6 +66,14 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 3
+    networks:
+      - sgitu-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: users-redis
+    ports:
+      - "6379:6379"
     networks:
       - sgitu-network
 
