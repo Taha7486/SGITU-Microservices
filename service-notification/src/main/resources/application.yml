@@ -36,6 +36,8 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    template:
+      default-topic: token-validation
 
   # ── Mail (MailHog en dev) ─────────────────────────────────
   mail:
@@ -78,10 +80,19 @@ g5:
 logging:
   level:
     ma.sgitu.g5.notifications: DEBUG
+    ma.sgitu.g5.admin: INFO
+    ma.sgitu.g5.security: INFO
+    ma.sgitu.g5.service.TracingService: INFO
     org.springframework.kafka: INFO
     org.springframework.mail: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/notification-service.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
 
 # ── Server ──────────────────────────────────────────────────
 server:

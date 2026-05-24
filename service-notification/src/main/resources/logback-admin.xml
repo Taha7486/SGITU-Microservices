@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Configuration de logging spécifique pour l'administrateur -->
+    
+    <!-- Appender pour le fichier de logs admin -->
+    <appender name="ADMIN_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/admin-operations.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/admin-operations.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>100MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Logger spécifique pour les opérations admin -->
+    <logger name="ma.sgitu.g5.admin" level="INFO" additivity="false">
+        <appender-ref ref="ADMIN_FILE" />
+    </logger>
+
+    <!-- Logger pour les opérations de sécurité et traçabilité JWT -->
+    <logger name="ma.sgitu.g5.security" level="INFO" additivity="false">
+        <appender-ref ref="ADMIN_FILE" />
+    </logger>
+
+    <!-- Logger pour les opérations de traçabilité (envoi à G10) -->
+    <logger name="ma.sgitu.g5.service.TracingService" level="INFO" additivity="false">
+        <appender-ref ref="ADMIN_FILE" />
+    </logger>
+
+    <!-- Logger pour les opérations de notification sensibles -->
+    <logger name="ma.sgitu.g5.controller.NotificationController" level="INFO" additivity="false">
+        <appender-ref ref="ADMIN_FILE" />
+    </logger>
+
+    <!-- Logger pour les erreurs et exceptions -->
+    <logger name="ma.sgitu.g5.exceptions" level="ERROR" additivity="false">
+        <appender-ref ref="ADMIN_FILE" />
+    </logger>
+
+    <!-- Logger pour les opérations Kafka (pour traçabilité inter-services) -->
+    <logger name="ma.sgitu.g5.controller.KafkaConsumerController" level="INFO" additivity="false">
+        <appender-ref ref="ADMIN_FILE" />
+    </logger>
+
+</configuration>
