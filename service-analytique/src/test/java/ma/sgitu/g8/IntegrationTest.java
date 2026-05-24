@@ -11,9 +11,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -31,6 +33,9 @@ class IntegrationTest {
 
     @Autowired
     private TestRestTemplate restTemplate;
+
+    @MockBean
+    private RestTemplate mockedRestTemplate;
 
     @Autowired
     private ScheduledAnalyticsJob scheduledAnalyticsJob;
@@ -73,6 +78,7 @@ class IntegrationTest {
         String[] lines = {"L1", "L2", "L3", "L1", "L2", "L3", "L1", "L2", "L3", "L1"};
         for (int i = 0; i < 10; i++) {
             tickets.add(Map.of(
+                    "schemaVersion", 1,
                     "timestamp", createTimestamp(hours[i]),
                     "userId", UUID.randomUUID().toString(),
                     "status", "validated",
@@ -90,6 +96,7 @@ class IntegrationTest {
         String[] methods = {"CARD", "CASH", "CARD", "MOBILE", "CASH"};
         for (int i = 0; i < 5; i++) {
             payments.add(Map.of(
+                    "schemaVersion", 1,
                     "timestamp", createTimestamp(10),
                     "transactionId", UUID.randomUUID().toString(),
                     "status", "completed",
@@ -108,6 +115,7 @@ class IntegrationTest {
         String[] severities = {"LOW", "MEDIUM", "HIGH", "CRITICAL", "LOW"};
         for (int i = 0; i < 5; i++) {
             incidents.add(Map.of(
+                    "schemaVersion", 1,
                     "timestamp", createTimestamp(10),
                     "incidentId", UUID.randomUUID().toString(),
                     "type", "delay",
@@ -139,6 +147,10 @@ class IntegrationTest {
         assertThat(hasFreq).as("Should have FREQ_ snapshots").isTrue();
         assertThat(hasRev).as("Should have REV_ snapshots").isTrue();
         assertThat(hasInc).as("Should have INC_ snapshots").isTrue();
+
+        snapshots.forEach(s -> assertThat(s.getSchemaVersion())
+                .as("Snapshot %s must carry schemaVersion=1", s.getStatId())
+                .isEqualTo(1));
 
 
         // =====================================================================

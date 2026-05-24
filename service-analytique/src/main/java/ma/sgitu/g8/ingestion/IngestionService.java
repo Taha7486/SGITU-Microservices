@@ -4,6 +4,7 @@ import ma.sgitu.g8.ingestion.dto.BatchIngestionResponse;
 import ma.sgitu.g8.model.IncomingEvent;
 import ma.sgitu.g8.model.SourceType;
 import ma.sgitu.g8.repository.EventRepository;
+import ma.sgitu.g8.schema.SchemaVersionValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -83,6 +84,11 @@ public class IngestionService {
             return "Payload must not be null or empty.";
         }
 
+        String schemaError = SchemaVersionValidator.validate(raw, IncomingEvent.CURRENT_SCHEMA_VERSION);
+        if (schemaError != null) {
+            return schemaError;
+        }
+
         Object timestampValue = raw.get("timestamp");
         if (!(timestampValue instanceof String timestamp) || timestamp.isBlank()) {
             return "Missing required timestamp.";
@@ -112,6 +118,7 @@ public class IngestionService {
                 ? OffsetDateTime.parse(ts, TIMESTAMP_FORMATTER).toLocalDateTime()
                 : LocalDateTime.now());
 
+        event.setSchemaVersion(IncomingEvent.CURRENT_SCHEMA_VERSION);
         event.setReceivedAt(LocalDateTime.now());
         event.setLineId(readString(raw, "line"));
         event.setZoneId(readString(raw, "zone"));

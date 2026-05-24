@@ -64,6 +64,7 @@ class IngestionControllerTest {
 
     private Map<String, Object> ticketEvent(String line) {
         return Map.of(
+                "schemaVersion", 1,
                 "timestamp", validTs(),
                 "userId", "user-" + line,
                 "status", "validated",
@@ -74,6 +75,7 @@ class IngestionControllerTest {
 
     private Map<String, Object> paymentEvent(String method) {
         return Map.of(
+                "schemaVersion", 1,
                 "timestamp", validTs(),
                 "transactionId", "tx-" + method,
                 "amount", 25.50,
@@ -85,6 +87,7 @@ class IngestionControllerTest {
 
     private Map<String, Object> vehicleEvent(String vehicleId) {
         return Map.of(
+                "schemaVersion", 1,
                 "timestamp", validTs(),
                 "vehicleId", vehicleId,
                 "status", "in_service",
@@ -95,6 +98,7 @@ class IngestionControllerTest {
 
     private Map<String, Object> incidentEvent(String zone) {
         return Map.of(
+                "schemaVersion", 1,
                 "timestamp", validTs(),
                 "incidentId", "inc-" + zone,
                 "type", "delay",
@@ -105,6 +109,7 @@ class IngestionControllerTest {
 
     private Map<String, Object> subscriptionEvent(String action) {
         return Map.of(
+                "schemaVersion", 1,
                 "timestamp", validTs(),
                 "userId", "sub-user-1",
                 "action", action,
@@ -114,6 +119,7 @@ class IngestionControllerTest {
 
     private Map<String, Object> userEvent(String action) {
         return Map.of(
+                "schemaVersion", 1,
                 "timestamp", validTs(),
                 "userId", "u-001",
                 "action", action
@@ -123,6 +129,23 @@ class IngestionControllerTest {
     /** An event guaranteed to fail validation – no timestamp field. */
     private Map<String, Object> invalidEvent() {
         return Map.of("garbage", "data");
+    }
+
+    private Map<String, Object> missingSchemaVersionEvent() {
+        return Map.of(
+                "timestamp", validTs(),
+                "userId", "u-no-schema",
+                "action", "active"
+        );
+    }
+
+    private Map<String, Object> wrongSchemaVersionEvent() {
+        return Map.of(
+                "schemaVersion", 99,
+                "timestamp", validTs(),
+                "userId", "u-wrong-schema",
+                "action", "active"
+        );
     }
 
     // =========================================================================
@@ -410,6 +433,61 @@ class IngestionControllerTest {
         void emptyUserBatch() throws Exception {
             mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content("[]"))
                     .andExpect(status().isBadRequest());
+        }
+    }
+
+    // =========================================================================
+    // Schema versioning enforcement
+    // =========================================================================
+
+    @Nested
+    @DisplayName("Schema versioning")
+    class SchemaVersioning {
+
+        private static final String URL = "/api/v1/ingestion/tickets";
+
+        @Test
+        @DisplayName("E – missing schemaVersion → all events rejected (400 REJECTED)")
+        void missingSchemaVersion_allRejected() throws Exception {
+            String body = objectMapper.writeValueAsString(List.of(missingSchemaVersionEvent()));
+            mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value("REJECTED"))
+                    .andExpect(jsonPath("$.totalAccepted").value(0))
+                    .andExpect(jsonPath("$.rejectedReasons[0]", containsString("schemaVersion")));
+        }
+
+        @Test
+        @DisplayName("F – wrong schemaVersion (99) → all events rejected (400 REJECTED)")
+        void wrongSchemaVersion_allRejected() throws Exception {
+            String body = objectMapper.writeValueAsString(List.of(wrongSchemaVersionEvent()));
+            mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value("REJECTED"))
+                    .andExpect(jsonPath("$.totalAccepted").value(0))
+                    .andExpect(jsonPath("$.rejectedReasons[0]", containsString("schemaVersion")));
+        }
+
+        @Test
+        @DisplayName("G – correct schemaVersion (1) → event accepted (201 SUCCESS)")
+        void correctSchemaVersion_accepted() throws Exception {
+            String body = objectMapper.writeValueAsString(List.of(ticketEvent("L1")));
+            mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.totalAccepted").value(1));
+        }
+
+        @Test
+        @DisplayName("H – mixed batch: 1 valid + 1 missing schemaVersion → 207 PARTIAL")
+        void mixedSchemaVersionBatch_partial() throws Exception {
+            String body = objectMapper.writeValueAsString(
+                    List.of(ticketEvent("L1"), missingSchemaVersionEvent()));
+            mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isMultiStatus())
+                    .andExpect(jsonPath("$.status").value("PARTIAL"))
+                    .andExpect(jsonPath("$.totalAccepted").value(1))
+                    .andExpect(jsonPath("$.totalRejected").value(1));
         }
     }
 }

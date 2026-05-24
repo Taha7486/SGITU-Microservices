@@ -4,9 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import ma.sgitu.g8.model.StatSnapshot;
 import ma.sgitu.g8.repository.SnapshotRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -22,10 +20,7 @@ public class ThresholdAlertService {
     private SnapshotRepository snapshotRepository;
 
     @Autowired
-    private RestTemplate restTemplate;
-
-    @Value("${g5.notification.url}")
-    private String g5Url;
+    private AlertSender alertSender;
 
     public void detect() {
         checkPunctuality();
@@ -169,12 +164,7 @@ public class ThresholdAlertService {
     }
 
     private void sendAlert(Map<String, Object> payload) {
-        try {
-            restTemplate.postForObject(g5Url, payload, Void.class);
-            log.info("Alert sent to G5: {}", payload.get("eventType"));
-        } catch (Exception ex) {
-            log.error("Failed to send alert to G5", ex);
-        }
+        alertSender.send(payload);
     }
 
     private double value(StatSnapshot snapshot) {

@@ -80,6 +80,7 @@ public class MlPredictionService {
             );
 
             StatSnapshot snapshot = new StatSnapshot();
+            snapshot.setSchemaVersion(StatSnapshot.CURRENT_SCHEMA_VERSION);
             snapshot.setStatId("PRED_01");
             snapshot.setSnapshotType(SnapshotType.PREDICTION);
             snapshot.setComputedAt(LocalDateTime.now());
@@ -165,6 +166,7 @@ public class MlPredictionService {
             );
 
             StatSnapshot snapshot = new StatSnapshot();
+            snapshot.setSchemaVersion(StatSnapshot.CURRENT_SCHEMA_VERSION);
             snapshot.setStatId("PRED_02");
             snapshot.setSnapshotType(SnapshotType.PREDICTION);
             snapshot.setComputedAt(LocalDateTime.now());

@@ -164,6 +164,7 @@ public class UserAggregation {
     private void save(String statId, String displayId, String granularity, String period,
                       double value, Map<String, Object> data) {
         StatSnapshot snapshot = StatSnapshot.builder()
+                .schemaVersion(StatSnapshot.CURRENT_SCHEMA_VERSION)
                 .snapshotType(SnapshotType.USERS)
                 .statId(statId)
                 .granularity(granularity)

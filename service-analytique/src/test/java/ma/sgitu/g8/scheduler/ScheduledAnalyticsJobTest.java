@@ -12,6 +12,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -36,6 +38,9 @@ class ScheduledAnalyticsJobTest {
 
     @Autowired
     private ScheduledAnalyticsJob scheduledAnalyticsJob;
+
+    @MockBean
+    private RestTemplate restTemplate;
 
     @Autowired
     private EventRepository eventRepository;
@@ -180,6 +185,9 @@ class ScheduledAnalyticsJobTest {
             assertThat(snapshot.getComputedAt())
                     .as("computedAt must not be null for snapshot %s", snapshot.getId())
                     .isNotNull();
+            assertThat(snapshot.getSchemaVersion())
+                    .as("schemaVersion must be 1 for snapshot %s", snapshot.getId())
+                    .isEqualTo(1);
         }
     }
 
