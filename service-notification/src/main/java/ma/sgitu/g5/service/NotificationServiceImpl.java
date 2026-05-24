@@ -10,6 +10,10 @@ import ma.sgitu.g5.entity.NotificationStatus;
 import ma.sgitu.g5.entity.NotificationType;
 import ma.sgitu.g5.mapper.NotificationMapper;
 import ma.sgitu.g5.repository.NotificationRepository;
+import ma.sgitu.g5.repository.specification.NotificationSpecification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +68,22 @@ public class NotificationServiceImpl implements INotificationService {
 
         log.info("[G5] Notification QUEUED : {} | channel={}", notificationId, dto.getChannel());
         return buildResponse(notificationId, "QUEUED", "Notification prise en charge", dto.getChannel());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Notification> list(String userId, String status, String sourceService, Pageable pageable) {
+        NotificationStatus enumStatus = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                enumStatus = NotificationStatus.valueOf(status.trim().toUpperCase());
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException(
+                        "Statut invalide : " + status + ". Valeurs acceptées : PENDING, SENT, FAILED");
+            }
+        }
+        Specification<Notification> spec = NotificationSpecification.withFilters(userId, enumStatus, sourceService);
+        return notificationRepository.findAll(spec, pageable);
     }
 
     @Override

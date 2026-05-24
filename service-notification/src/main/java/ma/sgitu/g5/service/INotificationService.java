@@ -2,6 +2,9 @@ package ma.sgitu.g5.service;
 
 import ma.sgitu.g5.dto.request.NotificationRequestDTO;
 import ma.sgitu.g5.dto.response.NotificationResponseDTO;
+import ma.sgitu.g5.entity.Notification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface INotificationService {
 
@@ -30,4 +33,10 @@ public interface INotificationService {
      * @return résultat de la relance
      */
     NotificationResponseDTO retry(String notificationId);
+
+    /**
+     * Liste paginée avec filtres optionnels (userId, status, sourceService).
+     * Seuls les paramètres non vides sont appliqués à la requête.
+     */
+    Page<Notification> list(String userId, String status, String sourceService, Pageable pageable);
 }

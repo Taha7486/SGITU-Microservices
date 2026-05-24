@@ -81,8 +81,7 @@ public class NotificationController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String sourceService,
             Pageable pageable) {
-        // TODO: filtres dynamiques selon params
-        return ResponseEntity.ok(notificationRepository.findAll(pageable));
+        return ResponseEntity.ok(notificationService.list(userId, status, sourceService, pageable));
     }
 
     @PostMapping("/{notificationId}/retry")
