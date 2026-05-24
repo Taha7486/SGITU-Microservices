@@ -10,26 +10,27 @@ Microservice **G4** : gestion du réseau (lignes, trajets, arrêts, horaires), d
 
 ## Démarrage rapide (Docker)
 
-**Stack G4 seule :**
-
+**G4 seul (développement) :**
 ```bash
-cd service-coordination-transport
 docker compose up -d --build
 ```
 
-**Stack complète G4 + G5 + monitoring (3 piliers livraison) :**
-
+**G4 + Prometheus + Grafana (monitoring — sans G5, autre groupe) :**
 ```bash
 docker compose -f docker-compose.full-stack.yml up -d --build
+# ou : .\scripts\start-g4-monitoring.ps1
 ```
 
-**Monorepo SGITU (réseau `sgitu-network` avec G3, G7…) :**
+**Guide complet :** `docs/JOUR_INTEGRATION_ET_LIVRAISON_G4.md`
 
-```bash
-cd ..
-cp .env.example .env
-docker compose up -d --build g4-coordination g4-postgres notification-service kafka
+**Simulation Kubernetes (bonus — même image Docker, jour d'intégration = Compose) :**
+```powershell
+.\scripts\deploy-g4-k8s.ps1
 ```
+Voir `docs/KUBERNETES_G4.md` et manifestes `k8s/`.
+
+**CI/CD (GitHub Actions)** — tests auto + image Docker + déploiement smoke :  
+voir `docs/CI_CD_G4.md` (workflows `.github/workflows/g4-ci.yml`, `g4-cd.yml` à la racine du monorepo).
 
 | Service | URL |
 |---------|-----|
@@ -88,7 +89,7 @@ Exemples JSON : `postman/examples/`
 | G9 | Kafka consumer | `incident.transport.topic` → table `mission_incident_impacts` |
 | G4 | REST | `POST /api/g4/incident-impacts` — lien mission ↔ référence incident G9 |
 | G1 | Kafka producer | `missions-lifecycle` |
-| G5 | HTTP | notifications (fallback `DEGRADED` si injoignable) |
+| G5 | HTTP | **Autre groupe** — G4 appelle si URL configurée ; sinon `DEGRADED` |
 | G3 | HTTP optionnel | validation `chauffeurId` — voir ci-dessous |
 
 ## Validation conducteur G3 (contrat groupe G3)

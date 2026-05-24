@@ -1,19 +1,7 @@
-# Stack G4 complète — intégration « sans couture » + monitoring
+# G4 + Prometheus + Grafana (SANS G5 — autre groupe)
+# Équivalent à : docker compose --profile monitoring up -d --build
 #
-# Lance : G4 + PostgreSQL + Kafka + G5 (notifications) + Prometheus + Grafana
-# Réseau : sgitu-network (compatible avec le docker-compose racine du monorepo)
-#
-# Usage :
-#   cp .env.example .env
 #   docker compose -f docker-compose.full-stack.yml up -d --build
-#
-# URLs :
-#   G4 API      http://localhost:8084
-#   G4 health   http://localhost:8084/api/g4/health
-#   G4 logs     http://localhost:8084/api/g4/logs
-#   Prometheus  http://localhost:9090
-#   Grafana     http://localhost:3000  (admin / admin)
-#   G5          http://localhost:8085
 
 services:
   kafka:
@@ -60,53 +48,6 @@ services:
     networks:
       - sgitu-network
 
-  mysql-notification:
-    image: mysql:8.0
-    container_name: sgitu-mysql-notification
-    hostname: mysql-notification
-    ports:
-      - "3314:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${NOTIFICATION_MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: notifications_db
-      MYSQL_USER: sgitu
-      MYSQL_PASSWORD: ${NOTIFICATION_MYSQL_PASSWORD:-sgitu}
-    volumes:
-      - mysql_notification_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${NOTIFICATION_MYSQL_ROOT_PASSWORD:-root}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      - sgitu-network
-
-  notification-service:
-    build:
-      context: ../service-notification
-      dockerfile: Dockerfile
-    container_name: g5-notification-service
-    hostname: notification-service
-    ports:
-      - "8085:8085"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-notification:3306/notifications_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: sgitu
-      SPRING_DATASOURCE_PASSWORD: ${NOTIFICATION_MYSQL_PASSWORD:-sgitu}
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_MAIL_HOST: localhost
-      SPRING_MAIL_PORT: 1025
-      JWT_SECRET: ${SGITU_JWT_SECRET:-SGlUVS1HNC1KV1QtU0VDUkVOLURFVl8xMjhCaXRzX19VU0VfRU5WX1ZBUiMjIw==}
-      SPRING_PROFILES_ACTIVE: docker
-    depends_on:
-      mysql-notification:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    networks:
-      - sgitu-network
-
   g4-coordination:
     build: .
     container_name: g4-coordination-service
@@ -121,8 +62,8 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SGITU_JWT_SECRET: ${SGITU_JWT_SECRET:-SGlUVS1HNC1KV1QtU0VDUkVOLURFVl8xMjhCaXRzX19VU0VfRU5WX1ZBUiMjIw==}
       SGITU_G3_URL: ${SGITU_G3_URL:-http://g3-user-service:8083}
-      SGITU_G5_URL: http://notification-service:8085
-      SGITU_G10_URL: http://notification-service:8085
+      SGITU_G5_URL: ${SGITU_G5_URL:-http://g5-notification-service:8085}
+      SGITU_G10_URL: ${SGITU_G10_URL:-http://g10-gateway:8080}
       SGITU_G7_URL: ${SGITU_G7_URL:-http://g7-service:8087}
       SGITU_G1_URL: ${SGITU_G1_URL:-http://g1-billetterie:8081}
       SGITU_G9_URL: ${SGITU_G9_URL:-http://g9-incidents:8089}
@@ -143,7 +84,8 @@ services:
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
-      - g4-coordination
+      g4-coordination:
+        condition: service_started
     networks:
       - sgitu-network
 
@@ -166,7 +108,6 @@ services:
 
 volumes:
   sgitu_g4_pgdata:
-  mysql_notification_data:
 
 networks:
   sgitu-network:

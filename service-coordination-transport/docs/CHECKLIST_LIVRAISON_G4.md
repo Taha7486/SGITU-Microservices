@@ -36,14 +36,33 @@ Légende : `[x]` fait · `[ ]` à faire · `[~]` en cours / partiel
 
 ---
 
-## PARTIE 2 — Livraison finale (consigne officielle 29 mai)
+## PARTIE 2 — Livraison finale VCA (Pr. BESRI)
 
-> Guide complet : **`docs/3_PILIERS_LIVRAISON_G4.md`**
+> **Guide complet :** `docs/LIVRAISON_VCA_BESRI_G4.md`  
+> **Archive :** `G4_SGITU_Final.zip` via `scripts/assemble-livraison-G4.ps1`
+
+### A. Rapport Technique Final (PDF)
+
+- [x] Source LaTeX `RAPPORT_G4_COORDINATION.tex` (sections VCA à jour)
+- [ ] Compiler → `RAPPORT_G4_COORDINATION.pdf`
+- [ ] Introduction, UML, architecture, API, sécurité, tests (chapitres 1–10)
+- [ ] Insérer captures dans `rapport/captures/` ou racine rapport
+
+### B. Présentation (PDF 10–15 slides)
+
+- [x] Source `PRESENTATION_G4.tex` (12 slides)
+- [ ] Compiler → `PRESENTATION_G4.pdf`
+
+### C. Code & DevOps
+
+- [x] `src/` + `Dockerfile` + `docker-compose.yml` + `docker-compose.full-stack.yml`
+- [x] `README.md`
+- [x] Script ZIP `scripts/assemble-livraison-G4.ps1`
 
 ### Pilier 1 — Intégration sans couture
 
 - [x] Réseau Docker `sgitu-network` — G4 dans `../docker-compose.yml` racine
-- [x] Stack autonome `docker-compose.full-stack.yml` (G4 + G5 + Kafka + monitoring)
+- [x] Stack autonome `docker-compose.full-stack.yml` (G4 + monitoring, **sans G5**)
 - [ ] Test inter-groupes avec capture `docker network inspect sgitu-network`
 
 ### Pilier 2 — Observabilité
@@ -78,7 +97,8 @@ Légende : `[x]` fait · `[ ]` à faire · `[~]` en cours / partiel
 - [ ] **Tests** — unitaires/intégration (`mvn test`) + **captures Postman**
 - [ ] Intégrations — topics Kafka, contrats JSON, dépendances G3/G7/G9/G1/G5
 - [ ] Supervision — `/api/g4/health`, `/api/g4/logs`, actuator
-- [ ] En cours / perspectives — tests inter-groupes, auth G10, K8s, CI/CD
+- [x] CI/CD — `.github/workflows/g4-ci.yml`, `g4-cd.yml` + `docs/CI_CD_G4.md`
+- [ ] En cours / perspectives — tests inter-groupes, auth G10
 - [ ] Export PDF depuis `RAPPORT_G4_COORDINATION.tex` (ou Word) — version **finale**
 
 ### B. Support de présentation (PDF, 10–15 slides)
@@ -125,7 +145,7 @@ Légende : `[x]` fait · `[ ]` à faire · `[~]` en cours / partiel
 ### Bonus (optionnel)
 
 - [x] Communication asynchrone **Kafka** (G7 positions, G9 incidents, G1 lifecycle)
-- [ ] Kubernetes (simulation ou manifestes) — perspective rapport
+- [x] Kubernetes (simulation ou manifestes) — `k8s/` + `docs/KUBERNETES_G4.md` + `scripts/deploy-g4-k8s.ps1`
 - [ ] Prometheus / Grafana — ou monitoring via `/health` + `/logs` documenté
 
 ---
