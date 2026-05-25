@@ -149,7 +149,7 @@ public class TicketService {
         ticket.setIssuedAt(Instant.now());
         Ticket saved = ticketRepository.save(ticket);
 
-        //eventPublisher.publish(KafkaTopics.TICKET_PAYMENT_SUCCESS, saved);
+        eventPublisher.publish(KafkaTopics.TICKET_PAYMENT_SUCCESS, saved);
         return ticketMapper.toResponse(saved);
     }
 
@@ -168,7 +168,7 @@ public class TicketService {
         ticket.setCancelledAt(Instant.now());
         Ticket saved = ticketRepository.save(ticket);
 
-//        eventPublisher.publish(KafkaTopics.TICKET_CANCELLED, saved);
+        eventPublisher.publish(KafkaTopics.TICKET_CANCELLED, saved);
         return ticketMapper.toResponse(saved);
     }
 
@@ -193,7 +193,7 @@ public class TicketService {
         ticket.setRefundedAt(Instant.now());
         Ticket saved = ticketRepository.save(ticket);
 
-        //eventPublisher.publish(KafkaTopics.TICKET_REFUND_REQUESTED, saved);
+        eventPublisher.publish(KafkaTopics.TICKET_REFUND_REQUESTED, saved);
         return ticketMapper.toResponse(saved);
     }
 
@@ -235,7 +235,7 @@ public class TicketService {
         ticket.setTransferredAt(Instant.now());
         Ticket savedOriginal = ticketRepository.save(ticket);
 
-//        eventPublisher.publish(KafkaTopics.TICKET_TRANSFER_INITIATED, savedOriginal);
+        eventPublisher.publish(KafkaTopics.TICKET_TRANSFER_INITIATED, savedOriginal);
 
         return new TicketTransferResponse(
                 ticketMapper.toResponse(savedOriginal),
@@ -274,7 +274,7 @@ public class TicketService {
         fromTicket.setTransferredAt(Instant.now());
         ticketRepository.save(fromTicket);
 
-        //eventPublisher.publish(KafkaTopics.TICKET_TRANSFER_COMPLETED, saved);
+        eventPublisher.publish(KafkaTopics.TICKET_TRANSFER_COMPLETED, saved);
         return ticketMapper.toResponse(saved);
     }
 
@@ -309,7 +309,7 @@ public class TicketService {
         pendingTicket.setCancelledAt(Instant.now());
         Ticket savedPending = ticketRepository.save(pendingTicket);
 
-        //eventPublisher.publish(KafkaTopics.TICKET_TRANSFER_REJECTED, savedOriginal);
+        eventPublisher.publish(KafkaTopics.TICKET_TRANSFER_REJECTED, savedOriginal);
 
         return new TicketTransferResponse(
                 ticketMapper.toResponse(savedOriginal),
@@ -337,8 +337,8 @@ public class TicketService {
         ticket.setUpdatedAt(Instant.now());
         history.removeLast();
 
-        //eventPublisher.publish(KafkaTopics.TICKET_TRANSFER_CANCELLED, saved);
         Ticket saved = ticketRepository.save(ticket);
+        eventPublisher.publish(KafkaTopics.TICKET_TRANSFER_CANCELLED, saved);
         return ticketMapper.toResponse(saved);
     }
 
