@@ -153,6 +153,7 @@ public class IncidentServiceImpl implements IncidentService {
         log.info("Renfort {} ajouté à l'incident {}", agentId, incident.getReference());
 
         // Notifier le renfort spécifiquement
+        notificationService.envoyerAssignationRenfort(incident, agentId);
     }
 
     // ============================================================
@@ -531,6 +532,8 @@ public class IncidentServiceImpl implements IncidentService {
 
         // Notification G5 — confirmation au déclarant
         notificationService.envoyerConfirmation(saved);
+        // Alerte aux superviseurs
+        notificationService.envoyerAlerteSuperviseurs(saved);
 
         return SignalementResponseDTO.builder()
                 .incidentId(saved.getId())
