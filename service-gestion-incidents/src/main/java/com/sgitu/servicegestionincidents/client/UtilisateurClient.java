@@ -13,4 +13,7 @@ public interface UtilisateurClient {
 
     @GetMapping("/api/utilisateurs/{userId}/roles/{role}")
     Boolean verifierRole(@PathVariable Long userId, @PathVariable String role);
+
+    @GetMapping("/api/utilisateurs/roles/{role}")
+    java.util.List<UtilisateurDTO> obtenirUtilisateursParRole(@PathVariable String role);
 }
