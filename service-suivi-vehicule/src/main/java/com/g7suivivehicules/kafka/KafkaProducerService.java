@@ -49,7 +49,7 @@ public class KafkaProducerService {
                 .lat(position.getLatitude())
                 .longitude(position.getLongitude())
                 .vitesse(position.getVitesse())
-                .timestamp(position.getTimestamp().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                .timestamp(position.getTimestamp().format(DateTimeFormatter.ISO_DATE_TIME))
                 .build();
 
         kafkaTemplate.send(topicPositionG4, position.getVehiculeId().toString(), dtoG4);

@@ -151,6 +151,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db-g7:5432/${suivi_vehicule_DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${suivi_vehicule_DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${suivi_vehicule_DB_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SERVER_PORT: 8087
       G4_BASE_URL: ${G4_BASE_URL:-}
       G5_BASE_URL: ${G5_BASE_URL:-}
