@@ -7,6 +7,8 @@ import com.sgitu.servicegestionincidents.model.enums.StatutIncident;
 import com.sgitu.servicegestionincidents.model.enums.TypeAction;
 import com.sgitu.servicegestionincidents.repository.IncidentRepository;
 import com.sgitu.servicegestionincidents.service.NotificationService;
+import com.sgitu.servicegestionincidents.messaging.producer.TransportProducer;
+import com.sgitu.servicegestionincidents.messaging.event.IncidentTransportEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,6 +25,7 @@ public class IncidentSlaScheduler {
 
     private final IncidentRepository incidentRepository;
     private final NotificationService notificationService;
+    private final TransportProducer transportProducer;
 
     /**
      * Tâche planifiée qui s'exécute toutes les minutes pour vérifier le SLA de 5 minutes
@@ -65,6 +68,21 @@ public class IncidentSlaScheduler {
 
                 // Notifier les superviseurs (G5) via l'événement d'escalade
                 notificationService.envoyerEscalade(incident, "Dépassement du SLA d'assignation de 5 minutes");
+
+                // Notifier G4 (Transport) de l'escalade
+                IncidentTransportEvent transportEvent = IncidentTransportEvent.builder()
+                        .referenceIncident(incident.getReference())
+                        .type(incident.getType().name())
+                        .statut("ESCALADE")
+                        .vehiculeId(incident.getVehiculeId())
+                        .ligneId(incident.getLocalisation() != null ? incident.getLocalisation().getLigneTransport() : null)
+                        .description(incident.getDescription())
+                        .latitude(incident.getLocalisation() != null ? incident.getLocalisation().getLatitude() : null)
+                        .longitude(incident.getLocalisation() != null ? incident.getLocalisation().getLongitude() : null)
+                        .timestamp(LocalDateTime.now())
+                        .build();
+                transportProducer.notifierTransport(transportEvent);
+                log.info("Événement G4 d'escalade envoyé automatiquement pour l'incident : {}", incident.getReference());
             } catch (Exception e) {
                 log.error("Erreur lors de l'escalade automatique de l'incident {} : {}", 
                         incident.getReference(), e.getMessage(), e);

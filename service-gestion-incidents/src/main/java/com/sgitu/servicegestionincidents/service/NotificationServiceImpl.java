@@ -98,7 +98,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public void envoyerAlerteSuperviseurs(Incident incident) {
+    public void envoyerAlerteDispatchers(Incident incident) {
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("incidentId", incident.getId());
         metadata.put("reference", incident.getReference());
@@ -120,7 +120,7 @@ public class NotificationServiceImpl implements NotificationService {
                 notificationProducer.envoyerNotification(event);
             }
         } catch (Exception e) {
-            log.warn("Erreur lors de la récupération des superviseurs pour alerte IoT : {}", e.getMessage());
+            log.warn("Erreur lors de la récupération des dispatchers pour alerte : {}", e.getMessage());
         }
     }
 
@@ -136,9 +136,9 @@ public class NotificationServiceImpl implements NotificationService {
 
         // 1. Notifier tous les superviseurs
         try {
-            java.util.List<UtilisateurDTO> dispatchers = utilisateurClient.obtenirUtilisateursParRole("ROLE_DISPATCHER");
-            for (UtilisateurDTO dispatcher : dispatchers) {
-                NotificationEvent.Recipient recipient = buildRecipient(dispatcher.getId(), "PUSH");
+            java.util.List<UtilisateurDTO> supervisors = utilisateurClient.obtenirUtilisateursParRole("ROLE_SUPERVISOR");
+            for (UtilisateurDTO supervisor : supervisors) {
+                NotificationEvent.Recipient recipient = buildRecipient(supervisor.getId(), "PUSH");
                 NotificationEvent event = buildBaseEvent("INCIDENT_ESCALADE", "PUSH", "HIGH", recipient)
                         .metadata(metadata)
                         .build();
@@ -171,13 +171,19 @@ public class NotificationServiceImpl implements NotificationService {
             metadata.put("description", incident.getDescription());
         }
 
-        NotificationEvent.Recipient recipient = buildRecipient(incident.getResponsableId(), "PUSH");
-
-        NotificationEvent event = buildBaseEvent("INTERVENTION_ASSIGNED", "PUSH", "HIGH", recipient)
+        // 1. Envoi PUSH
+        NotificationEvent.Recipient recipientPush = buildRecipient(incident.getResponsableId(), "PUSH");
+        NotificationEvent eventPush = buildBaseEvent("INTERVENTION_ASSIGNED", "PUSH", "HIGH", recipientPush)
                 .metadata(metadata)
                 .build();
+        notificationProducer.envoyerNotification(eventPush);
 
-        notificationProducer.envoyerNotification(event);
+        // 2. Envoi SMS
+        NotificationEvent.Recipient recipientSms = buildRecipient(incident.getResponsableId(), "SMS");
+        NotificationEvent eventSms = buildBaseEvent("INTERVENTION_ASSIGNED", "SMS", "HIGH", recipientSms)
+                .metadata(metadata)
+                .build();
+        notificationProducer.envoyerNotification(eventSms);
     }
 
     @Override
@@ -194,13 +200,18 @@ public class NotificationServiceImpl implements NotificationService {
         desc = "Vous avez été appelé en renfort sur cet incident. " + desc;
         metadata.put("description", desc);
 
-        NotificationEvent.Recipient recipient = buildRecipient(agentId, "PUSH");
-
-        // Utilisation d'un eventType distinct ou du même avec la description modifiée
-        NotificationEvent event = buildBaseEvent("RENFORT_ASSIGNED", "PUSH", "HIGH", recipient)
+        // 1. Envoi PUSH
+        NotificationEvent.Recipient recipientPush = buildRecipient(agentId, "PUSH");
+        NotificationEvent eventPush = buildBaseEvent("RENFORT_ASSIGNED", "PUSH", "HIGH", recipientPush)
                 .metadata(metadata)
                 .build();
+        notificationProducer.envoyerNotification(eventPush);
 
-        notificationProducer.envoyerNotification(event);
+        // 2. Envoi SMS
+        NotificationEvent.Recipient recipientSms = buildRecipient(agentId, "SMS");
+        NotificationEvent eventSms = buildBaseEvent("RENFORT_ASSIGNED", "SMS", "HIGH", recipientSms)
+                .metadata(metadata)
+                .build();
+        notificationProducer.envoyerNotification(eventSms);
     }
 }

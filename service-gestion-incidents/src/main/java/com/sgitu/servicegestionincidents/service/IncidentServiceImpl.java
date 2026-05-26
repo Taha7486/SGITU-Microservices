@@ -196,7 +196,7 @@ public class IncidentServiceImpl implements IncidentService {
         incidentRepository.save(incident);
         log.info("Incident {} — Statut mis à jour: {} → {}", incident.getReference(), ancienStatut, nouveauStatut);
 
-        // Déclencher G4 (Transport) — CONFIRME dès que le Superviseur confirme l'incident
+        // Déclencher G4 (Transport) — CONFIRME dès que le Dispatcher confirme l'incident
         if (nouveauStatut == StatutIncident.ANALYSE) {
             envoyerEvenementTransport(incident, "CONFIRME");
             incident.setTransportNotifie(true);
@@ -249,6 +249,9 @@ public class IncidentServiceImpl implements IncidentService {
 
         // Déclencher G5 (Notification) — alerte rouge vers la direction
         notificationService.envoyerEscalade(incident, motif);
+
+        // Déclencher G4 (Transport) — notification d'escalade
+        envoyerEvenementTransport(incident, "ESCALADE");
     }
 
     // ============================================================
@@ -548,8 +551,8 @@ public class IncidentServiceImpl implements IncidentService {
 
         // Notification G5 — confirmation au déclarant
         notificationService.envoyerConfirmation(saved);
-        // Alerte aux superviseurs
-        notificationService.envoyerAlerteSuperviseurs(saved);
+        // Alerte aux dispatchers
+        notificationService.envoyerAlerteDispatchers(saved);
 
         return SignalementResponseDTO.builder()
                 .incidentId(saved.getId())

@@ -6,7 +6,7 @@ public interface NotificationService {
 
     void envoyerConfirmation(Incident incident);
     void envoyerChangementStatut(Incident incident, String ancienStatut);
-    void envoyerAlerteSuperviseurs(Incident incident);
+    void envoyerAlerteDispatchers(Incident incident);
     void envoyerEscalade(Incident incident, String motif);
     void envoyerAssignation(Incident incident);
     void envoyerAssignationRenfort(Incident incident, Long agentId);
