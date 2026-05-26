@@ -73,6 +73,10 @@ public class Incident {
     private boolean transportNotifie = false;
 
     @Column(nullable = false)
+    @Builder.Default
+    private boolean escalade = false;
+
+    @Column(nullable = false)
     private String source; // "USER", "IOT"
 
     @ManyToOne(cascade = CascadeType.ALL)
@@ -104,9 +108,10 @@ public class Incident {
     }
 
     public boolean isEscaladable() {
-        return (this.statut == StatutIncident.ASSIGNE ||
-                this.statut == StatutIncident.EN_TRAITEMENT) &&
-                this.statut != StatutIncident.ESCALADE;
+        return !this.escalade && (this.statut == StatutIncident.NOUVEAU ||
+                this.statut == StatutIncident.ANALYSE ||
+                this.statut == StatutIncident.ASSIGNE ||
+                this.statut == StatutIncident.EN_TRAITEMENT);
     }
 
     public boolean isAnnulable() {

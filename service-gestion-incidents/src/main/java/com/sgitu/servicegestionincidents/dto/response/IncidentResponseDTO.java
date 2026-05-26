@@ -32,4 +32,5 @@ public class IncidentResponseDTO {
     private String motifAnnulation;
     private String motifCloture;
     private java.util.List<RenfortDTO> renforts;
+    private boolean escalade;
 }

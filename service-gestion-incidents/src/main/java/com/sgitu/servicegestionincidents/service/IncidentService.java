@@ -19,4 +19,7 @@ public interface IncidentService {
     void mettreAJourStatut(Long id, StatutIncident statut, Long auteurId);
     void annulerIncident(Long id, String motif, Long auteurId);
     void ajouterRenfort(Long incidentId, Long agentId, Long auteurId);
+    List<IncidentResponseDTO> obtenirTousLesIncidents();
+    List<IncidentResponseDTO> obtenirIncidentsNonEscalades();
+    List<IncidentResponseDTO> obtenirIncidentsEscalades();
 }

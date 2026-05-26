@@ -61,6 +61,10 @@ public interface IncidentRepository extends JpaRepository<Incident, Long>, JpaSp
                         @Param("lng") Double longitude,
                         @Param("radiusMeters") Double radiusMeters);
 
+        List<Incident> findByStatutAndEscaladeFalseAndDateSignalementBefore(StatutIncident statut, LocalDateTime time);
+
+        List<Incident> findByEscalade(boolean escalade);
+
         /**
          * Filtrage par statut et déclarant combinés.
          */

@@ -113,8 +113,8 @@ public class NotificationServiceImpl implements NotificationService {
         try {
             java.util.List<UtilisateurDTO> dispatchers = utilisateurClient.obtenirUtilisateursParRole("ROLE_DISPATCHER");
             for (UtilisateurDTO dispatcher : dispatchers) {
-                NotificationEvent.Recipient recipient = buildRecipient(dispatcher.getId(), "SMS");
-                NotificationEvent event = buildBaseEvent("INCIDENT_ALERT", "SMS", "HIGH", recipient)
+                NotificationEvent.Recipient recipient = buildRecipient(dispatcher.getId(), "PUSH");
+                NotificationEvent event = buildBaseEvent("INCIDENT_ALERT", "PUSH", "HIGH", recipient)
                         .metadata(metadata)
                         .build();
                 notificationProducer.envoyerNotification(event);
@@ -138,8 +138,8 @@ public class NotificationServiceImpl implements NotificationService {
         try {
             java.util.List<UtilisateurDTO> dispatchers = utilisateurClient.obtenirUtilisateursParRole("ROLE_DISPATCHER");
             for (UtilisateurDTO dispatcher : dispatchers) {
-                NotificationEvent.Recipient recipient = buildRecipient(dispatcher.getId(), "EMAIL");
-                NotificationEvent event = buildBaseEvent("INCIDENT_ESCALADE", "SMS", "HIGH", recipient)
+                NotificationEvent.Recipient recipient = buildRecipient(dispatcher.getId(), "PUSH");
+                NotificationEvent event = buildBaseEvent("INCIDENT_ESCALADE", "PUSH", "HIGH", recipient)
                         .metadata(metadata)
                         .build();
                 notificationProducer.envoyerNotification(event);
@@ -150,8 +150,8 @@ public class NotificationServiceImpl implements NotificationService {
 
         // 2. Notifier le technicien assigné (s'il y en a un)
         if (incident.getResponsableId() != null) {
-            NotificationEvent.Recipient technicienRecipient = buildRecipient(incident.getResponsableId(), "SMS");
-            NotificationEvent technicienEvent = buildBaseEvent("INCIDENT_ESCALADE", "SMS", "HIGH", technicienRecipient)
+            NotificationEvent.Recipient technicienRecipient = buildRecipient(incident.getResponsableId(), "PUSH");
+            NotificationEvent technicienEvent = buildBaseEvent("INCIDENT_ESCALADE", "PUSH", "HIGH", technicienRecipient)
                     .metadata(metadata)
                     .build();
             notificationProducer.envoyerNotification(technicienEvent);
@@ -171,9 +171,9 @@ public class NotificationServiceImpl implements NotificationService {
             metadata.put("description", incident.getDescription());
         }
 
-        NotificationEvent.Recipient recipient = buildRecipient(incident.getResponsableId(), "SMS");
+        NotificationEvent.Recipient recipient = buildRecipient(incident.getResponsableId(), "PUSH");
 
-        NotificationEvent event = buildBaseEvent("INTERVENTION_ASSIGNED", "SMS", "HIGH", recipient)
+        NotificationEvent event = buildBaseEvent("INTERVENTION_ASSIGNED", "PUSH", "HIGH", recipient)
                 .metadata(metadata)
                 .build();
 
@@ -194,10 +194,10 @@ public class NotificationServiceImpl implements NotificationService {
         desc = "Vous avez été appelé en renfort sur cet incident. " + desc;
         metadata.put("description", desc);
 
-        NotificationEvent.Recipient recipient = buildRecipient(agentId, "SMS");
+        NotificationEvent.Recipient recipient = buildRecipient(agentId, "PUSH");
 
         // Utilisation d'un eventType distinct ou du même avec la description modifiée
-        NotificationEvent event = buildBaseEvent("RENFORT_ASSIGNED", "SMS", "HIGH", recipient)
+        NotificationEvent event = buildBaseEvent("RENFORT_ASSIGNED", "PUSH", "HIGH", recipient)
                 .metadata(metadata)
                 .build();
 
