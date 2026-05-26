@@ -31,6 +31,9 @@ public class IncidentResponseDTO {
     private LocalDateTime dateResolution;
     private String motifAnnulation;
     private String motifCloture;
+    private String motifEscalade;
+    private boolean demandeEscalade;
+    private String motifDemandeEscalade;
     private java.util.List<RenfortDTO> renforts;
     private boolean escalade;
 }

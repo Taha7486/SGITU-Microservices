@@ -222,6 +222,11 @@ public class IncidentServiceImpl implements IncidentService {
 
         Incident incident = trouverIncidentOuErreur(id);
 
+        // Seuls les superviseurs et les dispatchers peuvent confirmer/valider l'escalade
+        if (!isSupervisor() && !isDispatcher()) {
+            throw new AccessDeniedException("Accès refusé : seuls les superviseurs et les dispatchers peuvent escalader cet incident.");
+        }
+
         if (!incident.isEscaladable()) {
             throw new IllegalStateTransitionException(
                     String.format("Impossible d'escalader l'incident %s en statut %s. " +
@@ -232,6 +237,11 @@ public class IncidentServiceImpl implements IncidentService {
         StatutIncident ancienStatut = incident.getStatut();
         incident.setEscalade(true);
         incident.setGravite(NiveauGravite.CRITIQUE);
+        incident.setMotifEscalade(motif);
+        
+        // Nettoyer la demande d'escalade en cours si elle existait
+        incident.setDemandeEscalade(false);
+        incident.setMotifDemandeEscalade(null);
 
         // Enregistrer l'escalade dans l'historique
         Action action = Action.builder()
@@ -245,13 +255,77 @@ public class IncidentServiceImpl implements IncidentService {
         incident.addAction(action);
 
         incidentRepository.save(incident);
-        log.info("Incident {} escaladé — Gravité: CRITIQUE, escalade: true", incident.getReference());
+        log.info("Incident {} escaladé — Gravité: CRITIQUE, escalade: true, motif: {}", incident.getReference(), motif);
 
         // Déclencher G5 (Notification) — alerte rouge vers la direction
         notificationService.envoyerEscalade(incident, motif);
 
         // Déclencher G4 (Transport) — notification d'escalade
         envoyerEvenementTransport(incident, "ESCALADE");
+    }
+
+    @Override
+    public void demanderEscalade(Long id, String motif, Long auteurId) {
+        log.info("Demande d'escalade soumise pour l'incident {} — Motif: {} par {}", id, motif, auteurId);
+
+        Incident incident = trouverIncidentOuErreur(id);
+
+        // Seul le technicien responsable actuellement assigné peut faire la demande
+        if (incident.getResponsableId() == null || !incident.getResponsableId().equals(auteurId)) {
+            throw new AccessDeniedException("Accès refusé : vous n'êtes pas le technicien assigné à cet incident.");
+        }
+
+        if (incident.isEscalade()) {
+            throw new IllegalStateTransitionException("Impossible de demander l'escalade : l'incident est déjà escaladé.");
+        }
+
+        incident.setDemandeEscalade(true);
+        incident.setMotifDemandeEscalade(motif);
+
+        Action action = Action.builder()
+                .type(TypeAction.DEMANDE_ESCALADE)
+                .description(String.format("Demande d'escalade soumise par le responsable terrain — Motif: %s", motif))
+                .auteurId(auteurId)
+                .dateAction(LocalDateTime.now())
+                .ancienStatut(incident.getStatut())
+                .nouveauStatut(incident.getStatut())
+                .build();
+        incident.addAction(action);
+
+        incidentRepository.save(incident);
+        log.info("Demande d'escalade soumise avec succès pour l'incident : {}", incident.getReference());
+    }
+
+    @Override
+    public void refuserEscalade(Long id, String motifRefus, Long auteurId) {
+        log.info("Refus d'escalade pour l'incident {} — Motif de refus: {} par {}", id, motifRefus, auteurId);
+
+        Incident incident = trouverIncidentOuErreur(id);
+
+        // Seuls les superviseurs et les dispatchers peuvent refuser
+        if (!isSupervisor() && !isDispatcher()) {
+            throw new AccessDeniedException("Accès refusé : seuls les superviseurs et les dispatchers peuvent refuser une escalade.");
+        }
+
+        if (!incident.isDemandeEscalade()) {
+            throw new IllegalStateTransitionException("Impossible de refuser l'escalade : aucune demande d'escalade en cours.");
+        }
+
+        incident.setDemandeEscalade(false);
+        incident.setMotifDemandeEscalade(null);
+
+        Action action = Action.builder()
+                .type(TypeAction.REFUS_ESCALADE)
+                .description(String.format("Demande d'escalade refusée par l'exploitation — Motif de refus: %s", motifRefus))
+                .auteurId(auteurId)
+                .dateAction(LocalDateTime.now())
+                .ancienStatut(incident.getStatut())
+                .nouveauStatut(incident.getStatut())
+                .build();
+        incident.addAction(action);
+
+        incidentRepository.save(incident);
+        log.info("Refus d'escalade enregistré pour l'incident : {}", incident.getReference());
     }
 
     // ============================================================
@@ -653,6 +727,13 @@ public class IncidentServiceImpl implements IncidentService {
                 .anyMatch(a -> a.getAuthority().equals("ROLE_DISPATCHER"));
     }
 
+    private boolean isTechnician() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return false;
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_TECHNICIAN"));
+    }
+
     /**
      * Recherche un incident par ID ou lève une exception 404.
      */
@@ -687,6 +768,9 @@ public class IncidentServiceImpl implements IncidentService {
                 .longitude(incident.getLocalisation() != null ? incident.getLocalisation().getLongitude() : null)
                 .incidentParentRef(incident.getIncidentParentRef())
                 .escalade(incident.isEscalade())
+                .motifEscalade(incident.getMotifEscalade())
+                .demandeEscalade(incident.isDemandeEscalade())
+                .motifDemandeEscalade(incident.getMotifDemandeEscalade())
                 .build();
     }
 

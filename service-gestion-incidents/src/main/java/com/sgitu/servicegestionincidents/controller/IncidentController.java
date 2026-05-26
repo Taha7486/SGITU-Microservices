@@ -102,12 +102,34 @@ public class IncidentController {
 
     @PutMapping("/{id}/escalader")
     @PreAuthorize("hasAnyRole('ROLE_DISPATCHER', 'ROLE_SUPERVISOR')")
-    @Operation(summary = "Escalader un incident critique")
+    @Operation(summary = "Escalader un incident critique (ou approuver une demande)")
     public ResponseEntity<Void> escaladerIncident(
             @PathVariable Long id,
             @Valid @RequestBody EscaladeRequestDTO request,
             @RequestHeader("X-User-Id") Long userId) {
         incidentService.escaladerIncident(id, request.getMotif(), userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/demander-escalade")
+    @PreAuthorize("hasAnyRole('ROLE_TECHNICIAN', 'ROLE_SECURITY', 'ROLE_MEDIC', 'ROLE_CLEANER')")
+    @Operation(summary = "Soumettre une demande d'escalade (Responsable uniquement)")
+    public ResponseEntity<Void> demanderEscalade(
+            @PathVariable Long id,
+            @Valid @RequestBody EscaladeRequestDTO request,
+            @RequestHeader("X-User-Id") Long userId) {
+        incidentService.demanderEscalade(id, request.getMotif(), userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/refuser-escalade")
+    @PreAuthorize("hasAnyRole('ROLE_DISPATCHER', 'ROLE_SUPERVISOR')")
+    @Operation(summary = "Refuser une demande d'escalade")
+    public ResponseEntity<Void> refuserEscalade(
+            @PathVariable Long id,
+            @Valid @RequestBody EscaladeRequestDTO request,
+            @RequestHeader("X-User-Id") Long userId) {
+        incidentService.refuserEscalade(id, request.getMotif(), userId);
         return ResponseEntity.noContent().build();
     }
 

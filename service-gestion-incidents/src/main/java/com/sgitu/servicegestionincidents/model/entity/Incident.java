@@ -68,6 +68,16 @@ public class Incident {
     @Column(length = 500)
     private String motifCloture;
 
+    @Column(length = 500)
+    private String motifEscalade;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean demandeEscalade = false;
+
+    @Column(length = 500)
+    private String motifDemandeEscalade;
+
     // Flag pour savoir si G4 (Transport) a déjà été notifié (pour le edge-case REJETE)
     @Builder.Default
     private boolean transportNotifie = false;
