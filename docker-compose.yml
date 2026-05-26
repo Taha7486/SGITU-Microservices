@@ -83,34 +83,6 @@ services:
       - db-abonnement
     networks:
       - abonnement-db-network
-  # ---------------------------------------------------------------
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./service-abonnement/prometheus.yml:/etc/prometheus/prometheus.yml
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-    networks:
-      - sgitu-network
-    depends_on:
-      - abonnement-service
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin123
-    volumes:
-      - grafana-data:/var/lib/grafana
-    networks:
-      - sgitu-network
-    depends_on:
-      - prometheus
   #  G3 — Service Utilisateur (port 8083)
   # ---------------------------------------------------------------
   user-service:
@@ -233,6 +205,35 @@ services:
   # ---------------------------------------------------------------
   #  G10 — (ajoutez votre service ici)
   # ---------------------------------------------------------------
+
+  # ---------------------------------------------------------------
+  # Services transversaux (Observabilité)
+  # ---------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - sgitu-network
+    depends_on:
+      - abonnement-service
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - sgitu-network
+    depends_on:
+      - prometheus
 
   # ---------------------------------------------------------------
   # Services transversaux (Kafka)
