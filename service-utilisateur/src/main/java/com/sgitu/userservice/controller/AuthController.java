@@ -5,10 +5,12 @@ import com.sgitu.userservice.entity.Role;
 import com.sgitu.userservice.entity.User;
 import com.sgitu.userservice.repository.UserRepository;
 import com.sgitu.userservice.security.JwtService;
+import com.sgitu.userservice.security.RedisTokenBlacklistService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,6 +30,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RedisTokenBlacklistService blacklistService;
 
     @Operation(summary = "Connexion utilisateur",
         description = "Valide les identifiants et retourne un JWT signe. G10 doit forwarder les requetes de login vers cet endpoint.")
@@ -56,5 +60,29 @@ public class AuthController {
                 .email(user.getEmail())
                 .roles(roles)
                 .build());
+    }
+
+    @Operation(summary = "Déconnexion utilisateur",
+        description = "Révoque le JWT courant et le stocke dans Redis jusqu'à expiration.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Déconnexion réussie"),
+        @ApiResponse(responseCode = "400", description = "Token invalide ou absent")
+    })
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        System.out.println("LOGOUT EXECUTED");
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Authorization header manquant ou incorrect");
+        }
+
+        String token = authHeader.substring(7);
+        long ttlSeconds = jwtService.getTokenTtlSeconds(token);
+        if (ttlSeconds <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token invalide ou expiré");
+        }
+
+        blacklistService.revokeToken(token, Duration.ofSeconds(ttlSeconds));
+        return ResponseEntity.noContent().build();
     }
 }

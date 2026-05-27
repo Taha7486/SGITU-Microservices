@@ -42,12 +42,14 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Public -- login (G3 issues the JWT)
                 .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                //.requestMatchers(HttpMethod.POST, "/auth/logout").permitAll()
 
                 // Public -- account creation (called by G10 on registration)
                 .requestMatchers(HttpMethod.POST, "/users").permitAll()
 
-                // Swagger / OpenAPI
+                // Swagger / OpenAPI & Error endpoint
                 .requestMatchers(
+                    "/error",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
                     "/v3/api-docs/**",
@@ -56,6 +58,7 @@ public class SecurityConfig {
 
                 // Existence check -- any authenticated service
                 .requestMatchers(HttpMethod.GET, "/users/*/exists").authenticated()
+                .requestMatchers(HttpMethod.GET, "/users/drivers/ids").authenticated()
 
                 // Admin endpoints
                 .requestMatchers(HttpMethod.GET, "/users").hasRole("ADMIN")
