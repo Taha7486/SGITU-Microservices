@@ -24,4 +24,7 @@ public interface IncidentService {
     List<IncidentResponseDTO> obtenirTousLesIncidents();
     List<IncidentResponseDTO> obtenirIncidentsNonEscalades();
     List<IncidentResponseDTO> obtenirIncidentsEscalades();
+    List<IncidentResponseDTO> obtenirIncidentsAffectes(Long userId);
+    List<IncidentResponseDTO> obtenirDemandesEscalades();
+    List<IncidentResponseDTO> obtenirMesSignalements(Long userId);
 }

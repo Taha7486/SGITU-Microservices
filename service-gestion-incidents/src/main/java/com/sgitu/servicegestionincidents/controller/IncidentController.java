@@ -89,6 +89,30 @@ public class IncidentController {
         return ResponseEntity.ok(incidents);
     }
 
+    @GetMapping("/affectes")
+    @PreAuthorize("hasAnyRole('ROLE_TECHNICIAN', 'ROLE_SECURITY', 'ROLE_MEDIC', 'ROLE_CLEANER', 'ROLE_DISPATCHER', 'ROLE_SUPERVISOR')")
+    @Operation(summary = "Récupérer les incidents affectés à l'utilisateur actuel (responsable ou renfort)")
+    public ResponseEntity<List<IncidentResponseDTO>> obtenirIncidentsAffectes(@RequestHeader("X-User-Id") Long userId) {
+        List<IncidentResponseDTO> incidents = incidentService.obtenirIncidentsAffectes(userId);
+        return ResponseEntity.ok(incidents);
+    }
+
+    @GetMapping("/demandes-escalades")
+    @PreAuthorize("hasAnyRole('ROLE_DISPATCHER', 'ROLE_SUPERVISOR')")
+    @Operation(summary = "Récupérer les incidents avec demande d'escalade en attente de validation")
+    public ResponseEntity<List<IncidentResponseDTO>> obtenirDemandesEscalades() {
+        List<IncidentResponseDTO> incidents = incidentService.obtenirDemandesEscalades();
+        return ResponseEntity.ok(incidents);
+    }
+
+    @GetMapping("/mes-signalements")
+    @PreAuthorize("hasAnyRole('ROLE_PASSENGER', 'ROLE_DRIVER', 'ROLE_TECHNICIAN', 'ROLE_DISPATCHER', 'ROLE_SUPERVISOR', 'ROLE_SECURITY', 'ROLE_MEDIC', 'ROLE_CLEANER')")
+    @Operation(summary = "Récupérer les incidents signalés par l'utilisateur actuel")
+    public ResponseEntity<List<IncidentResponseDTO>> obtenirMesSignalements(@RequestHeader("X-User-Id") Long userId) {
+        List<IncidentResponseDTO> incidents = incidentService.obtenirMesSignalements(userId);
+        return ResponseEntity.ok(incidents);
+    }
+
     @PutMapping("/{id}/cloturer")
     @PreAuthorize("hasAnyRole('ROLE_DISPATCHER', 'ROLE_SUPERVISOR')")
     @Operation(summary = "Clôturer un incident")

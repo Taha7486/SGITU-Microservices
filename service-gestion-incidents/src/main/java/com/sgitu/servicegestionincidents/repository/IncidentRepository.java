@@ -69,4 +69,15 @@ public interface IncidentRepository extends JpaRepository<Incident, Long>, JpaSp
          * Filtrage par statut et déclarant combinés.
          */
         List<Incident> findByStatutAndDeclarantId(StatutIncident statut, Long declarantId);
+
+        /**
+         * Trouver les incidents affectés à un agent (en tant que responsable ou renfort).
+         */
+        @Query("SELECT DISTINCT i FROM Incident i LEFT JOIN i.renforts r WHERE i.responsableId = :userId OR r.agentId = :userId")
+        List<Incident> trouverIncidentsAffectes(@Param("userId") Long userId);
+
+        /**
+         * Trouver les incidents ayant une demande d'escalade en attente.
+         */
+        List<Incident> findByDemandeEscalade(boolean demandeEscalade);
 }
