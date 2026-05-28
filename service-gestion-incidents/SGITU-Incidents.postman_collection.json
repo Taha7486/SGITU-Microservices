@@ -761,60 +761,102 @@
       "name": "4. Rapports et Statistiques",
       "item": [
         {
-          "name": "4.1 Générer un rapport mensuel",
+          "name": "4.1 Rapport — Aujourd'hui (jour)",
           "request": {
             "method": "GET",
             "header": [
-              {
-                "key": "X-User-Id",
-                "value": "3"
-              },
-              {
-                "key": "X-User-Role",
-                "value": "ROLE_SUPERVISOR"
-              }
+              { "key": "X-User-Id",   "value": "2" },
+              { "key": "X-User-Role", "value": "ROLE_DISPATCHER" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/rapports?periode=mois",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "rapports"
-              ],
-              "query": [
-                {
-                  "key": "periode",
-                  "value": "mois"
-                }
-              ]
+              "raw": "{{baseUrl}}/rapports?periode=jour",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "rapports" ],
+              "query": [ { "key": "periode", "value": "jour" } ]
             }
           },
           "response": []
         },
         {
-          "name": "4.2 Consulter le tableau de bord",
+          "name": "4.2 Rapport — Cette semaine (semaine)",
           "request": {
             "method": "GET",
             "header": [
-              {
-                "key": "X-User-Id",
-                "value": "3"
-              },
-              {
-                "key": "X-User-Role",
-                "value": "ROLE_SUPERVISOR"
-              }
+              { "key": "X-User-Id",   "value": "2" },
+              { "key": "X-User-Role", "value": "ROLE_DISPATCHER" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rapports?periode=semaine",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "rapports" ],
+              "query": [ { "key": "periode", "value": "semaine" } ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.3 Rapport — Ce mois (mois)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id",   "value": "3" },
+              { "key": "X-User-Role", "value": "ROLE_SUPERVISOR" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rapports?periode=mois",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "rapports" ],
+              "query": [ { "key": "periode", "value": "mois" } ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.4 Rapport — Ce trimestre (trimestre)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id",   "value": "3" },
+              { "key": "X-User-Role", "value": "ROLE_SUPERVISOR" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rapports?periode=trimestre",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "rapports" ],
+              "query": [ { "key": "periode", "value": "trimestre" } ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.5 Rapport — Cette année (annee)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id",   "value": "3" },
+              { "key": "X-User-Role", "value": "ROLE_SUPERVISOR" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rapports?periode=annee",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "rapports" ],
+              "query": [ { "key": "periode", "value": "annee" } ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.6 Tableau de bord en temps réel",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id",   "value": "3" },
+              { "key": "X-User-Role", "value": "ROLE_SUPERVISOR" }
             ],
             "url": {
               "raw": "{{baseUrl}}/rapports/tableau-bord",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "rapports",
-                "tableau-bord"
-              ]
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "rapports", "tableau-bord" ]
             }
           },
           "response": []

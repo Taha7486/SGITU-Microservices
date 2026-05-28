@@ -63,6 +63,11 @@ public interface IncidentRepository extends JpaRepository<Incident, Long>, JpaSp
 
         List<Incident> findByStatutAndEscaladeFalseAndDateSignalementBefore(StatutIncident statut, LocalDateTime time);
 
+        /**
+         * Trouver les incidents signalés depuis une date donnée (pour le filtrage par période).
+         */
+        List<Incident> findByDateSignalementAfter(LocalDateTime depuis);
+
         List<Incident> findByEscalade(boolean escalade);
 
         /**
