@@ -29,6 +29,10 @@ ml:
   service:
     url: http://localhost:5000
 
+g8:
+  scheduler:
+    auto-run: false
+
 resilience4j:
   circuitbreaker:
     instances:

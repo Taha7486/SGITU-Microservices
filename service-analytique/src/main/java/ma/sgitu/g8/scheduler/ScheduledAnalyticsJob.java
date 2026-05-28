@@ -10,6 +10,7 @@ import ma.sgitu.g8.aggregation.VehicleAggregation;
 import ma.sgitu.g8.alert.ThresholdAlertService;
 import ma.sgitu.g8.ml.MlPredictionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -41,7 +42,16 @@ public class ScheduledAnalyticsJob {
     @Autowired
     private MlPredictionService mlPredictionService;
 
+    @Value("${g8.scheduler.auto-run:true}")
+    private boolean autoRunEnabled;
+
     @Scheduled(fixedRate = 60000)
+    public void runScheduledAnalytics() {
+        if (autoRunEnabled) {
+            runAnalytics();
+        }
+    }
+
     public void runAnalytics() {
         log.info("ScheduledAnalyticsJob started");
         incidentAggregation.compute();

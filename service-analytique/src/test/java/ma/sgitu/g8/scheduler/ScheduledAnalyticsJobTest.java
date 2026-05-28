@@ -225,4 +225,52 @@ class ScheduledAnalyticsJobTest {
             assertThat(docs).as("statId %s should have exactly 1 document", statId).hasSize(1);
         });
     }
+
+    @Test
+    @DisplayName("E – malformed historical events do not break aggregations")
+    void malformedEvents_doNotBreakScheduler() {
+        LocalDateTime now = LocalDateTime.now().minusMinutes(5);
+
+        eventRepository.saveAll(List.of(
+                IncomingEvent.builder()
+                        .sourceType(SourceType.TICKETING)
+                        .sourceId("bad-ticket")
+                        .eventType("TICKET_VALIDATED")
+                        .timestamp(null)
+                        .receivedAt(LocalDateTime.now())
+                        .payload(null)
+                        .processed(false)
+                        .build(),
+                IncomingEvent.builder()
+                        .sourceType(SourceType.PAYMENT)
+                        .sourceId("bad-payment")
+                        .eventType("PAYMENT_COMPLETED")
+                        .timestamp(now)
+                        .receivedAt(LocalDateTime.now())
+                        .payload(Map.of("amount", "not-a-number"))
+                        .processed(false)
+                        .build(),
+                IncomingEvent.builder()
+                        .sourceType(SourceType.VEHICLE)
+                        .sourceId("bad-vehicle")
+                        .eventType("VEHICLE_IN_SERVICE")
+                        .timestamp(now)
+                        .receivedAt(LocalDateTime.now())
+                        .payload(null)
+                        .processed(false)
+                        .build(),
+                IncomingEvent.builder()
+                        .sourceType(SourceType.USER)
+                        .sourceId(null)
+                        .eventType("USER_ACTIVE")
+                        .timestamp(now)
+                        .receivedAt(LocalDateTime.now())
+                        .payload(null)
+                        .processed(false)
+                        .build()
+        ));
+
+        assertThatCode(() -> scheduledAnalyticsJob.runAnalytics())
+                .doesNotThrowAnyException();
+    }
 }

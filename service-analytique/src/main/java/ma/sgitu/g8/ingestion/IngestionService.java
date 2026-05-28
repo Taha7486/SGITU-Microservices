@@ -23,6 +23,7 @@ import java.util.UUID;
 public class IngestionService {
 
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
+    private static final int MAX_BATCH_SIZE = 1000;
 
     private final EventRepository eventRepository;
 
@@ -37,15 +38,25 @@ public class IngestionService {
                     .build();
         }
 
+        if (rawEvents.size() > MAX_BATCH_SIZE) {
+            return BatchIngestionResponse.builder()
+                    .totalReceived(rawEvents.size())
+                    .totalAccepted(0)
+                    .totalRejected(rawEvents.size())
+                    .rejectedReasons(List.of("Batch size exceeds maximum allowed (1000)"))
+                    .status("REJECTED")
+                    .build();
+        }
+
         List<IncomingEvent> acceptedEvents = new ArrayList<>();
         List<String> rejectedReasons = new ArrayList<>();
 
         for (int index = 0; index < rawEvents.size(); index++) {
             Map<String, Object> rawEvent = rawEvents.get(index);
-            String validationError = validate(rawEvent);
+            String validationError = validate(rawEvent, sourceType);
 
             if (validationError != null) {
-                rejectedReasons.add("Event " + index + ": " + validationError);
+                rejectedReasons.add("Event at index " + index + ": " + validationError);
                 continue;
             }
 
@@ -79,7 +90,7 @@ public class IngestionService {
         return "PARTIAL";
     }
 
-    private String validate(Map<String, Object> raw) {
+    private String validate(Map<String, Object> raw, SourceType sourceType) {
         if (raw == null || raw.isEmpty()) {
             return "Payload must not be null or empty.";
         }
@@ -89,9 +100,54 @@ public class IngestionService {
             return schemaError;
         }
 
+        String requiredFieldError = validateRequiredFields(raw, sourceType);
+        if (requiredFieldError != null) {
+            return requiredFieldError;
+        }
+
+        String timestampError = validateTimestamp(raw);
+        if (timestampError != null) {
+            return timestampError;
+        }
+
+        String numericError = validateNumericFields(raw);
+        if (numericError != null) {
+            return numericError;
+        }
+
+        String enumError = validateAllowedValues(raw, sourceType);
+        if (enumError != null) {
+            return enumError;
+        }
+
+        return null;
+    }
+
+    private String validateRequiredFields(Map<String, Object> raw, SourceType sourceType) {
+        return switch (sourceType) {
+            case TICKETING -> firstMissing(raw, "timestamp", "userId", "status");
+            case PAYMENT -> firstMissing(raw, "timestamp", "transactionId", "amount", "status");
+            case VEHICLE -> firstMissing(raw, "timestamp", "vehicleId", "status", "line");
+            case INCIDENT -> firstMissing(raw, "timestamp", "incidentId", "type", "severity", "zone");
+            case SUBSCRIPTION -> firstMissing(raw, "timestamp", "userId", "action");
+            case USER -> firstMissing(raw, "timestamp", "userId", "action");
+        };
+    }
+
+    private String firstMissing(Map<String, Object> raw, String... fields) {
+        for (String field : fields) {
+            Object value = raw.get(field);
+            if (value == null || String.valueOf(value).isBlank()) {
+                return "Missing required field: " + field;
+            }
+        }
+        return null;
+    }
+
+    private String validateTimestamp(Map<String, Object> raw) {
         Object timestampValue = raw.get("timestamp");
         if (!(timestampValue instanceof String timestamp) || timestamp.isBlank()) {
-            return "Missing required timestamp.";
+            return "Missing required field: timestamp";
         }
 
         try {
@@ -100,10 +156,60 @@ public class IngestionService {
                 return "Timestamp cannot be more than 5 minutes in the future.";
             }
         } catch (DateTimeParseException ex) {
-            return "Timestamp must be a valid ISO 8601 value.";
+            return "Invalid timestamp format";
         }
 
         return null;
+    }
+
+    private String validateNumericFields(Map<String, Object> raw) {
+        for (String field : List.of("amount", "speed", "delayMinutes", "resolutionMinutes")) {
+            Object value = raw.get(field);
+            if (value == null || String.valueOf(value).isBlank()) {
+                continue;
+            }
+
+            Double numericValue = readNumber(value);
+            if (numericValue == null) {
+                return "Field " + field + " must be numeric";
+            }
+            if (numericValue < 0) {
+                return "Field " + field + " must be >= 0, got " + value;
+            }
+        }
+        return null;
+    }
+
+    private Double readNumber(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private String validateAllowedValues(Map<String, Object> raw, SourceType sourceType) {
+        return switch (sourceType) {
+            case TICKETING -> validateAllowed(raw, "status", "validated", "expired");
+            case PAYMENT -> validateAllowed(raw, "status", "completed", "failed");
+            case VEHICLE -> validateAllowed(raw, "status", "in_service", "out_of_service");
+            case INCIDENT -> validateAllowed(raw, "severity", "LOW", "MEDIUM", "HIGH", "CRITICAL");
+            case SUBSCRIPTION -> validateAllowed(raw, "action", "created", "renewed", "cancelled");
+            case USER -> validateAllowed(raw, "action", "active", "inactive");
+        };
+    }
+
+    private String validateAllowed(Map<String, Object> raw, String field, String... allowedValues) {
+        String value = readString(raw, field);
+        for (String allowed : allowedValues) {
+            if (allowed.equalsIgnoreCase(value)) {
+                return null;
+            }
+        }
+        return "Invalid value '" + value + "' for field '" + field + "'";
     }
 
     private IncomingEvent mapToEvent(Map<String, Object> raw, SourceType sourceType) {

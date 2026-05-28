@@ -118,7 +118,10 @@ public class IncidentAggregation {
     }
 
     private List<IncomingEvent> events(LocalDateTime from, LocalDateTime to) {
-        return eventRepository.findBySourceTypeAndTimestampBetween(SourceType.INCIDENT, from, to);
+        return eventRepository.findBySourceTypeAndTimestampBetween(SourceType.INCIDENT, from, to)
+                .stream()
+                .filter(event -> event != null && event.getTimestamp() != null)
+                .toList();
     }
 
     private void save(String statId, String displayId, String granularity, String period, double value, Map<String, Object> data) {
@@ -136,12 +139,12 @@ public class IncidentAggregation {
     }
 
     private double resolutionMinutes(IncomingEvent event) {
-        Object value = event.getPayload().get("resolutionMinutes");
+        Object value = event == null || event.getPayload() == null ? null : event.getPayload().get("resolutionMinutes");
         if (value instanceof Number n) {
-            return n.doubleValue();
+            return Math.max(0, n.doubleValue());
         }
         try {
-            return value == null ? 0 : Double.parseDouble(String.valueOf(value));
+            return value == null ? 0 : Math.max(0, Double.parseDouble(String.valueOf(value)));
         } catch (NumberFormatException ex) {
             return 0;
         }
@@ -152,6 +155,9 @@ public class IncidentAggregation {
     }
 
     private String incidentType(IncomingEvent event) {
+        if (event == null) {
+            return "OTHER";
+        }
         if (event.getEventType() == null || event.getEventType().isBlank()) {
             return "OTHER";
         }
@@ -159,6 +165,9 @@ public class IncidentAggregation {
     }
 
     private String zoneId(IncomingEvent event) {
+        if (event == null) {
+            return "UNKNOWN";
+        }
         if (event.getZoneId() == null || event.getZoneId().isBlank()) {
             return "UNKNOWN";
         }
@@ -166,7 +175,7 @@ public class IncidentAggregation {
     }
 
     private String payload(IncomingEvent event, String key, String defaultValue) {
-        Object value = event.getPayload() == null ? null : event.getPayload().get(key);
+        Object value = event == null || event.getPayload() == null ? null : event.getPayload().get(key);
         if (value == null || String.valueOf(value).isBlank()) {
             return defaultValue;
         }
