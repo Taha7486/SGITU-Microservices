@@ -1,0 +1,32 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'g8-analytics-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['g8-analytics:8088']
+        labels:
+          group: 'G8'
+          service: 'analytics'
+
+  - job_name: 'g7-suivi-vehicule'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['g7-suivi-vehicule:8087']
+        labels:
+          group: 'G7'
+          service: 'suivi-vehicule'
+
+  - job_name: 'g6-paiement'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['g6-paiement:8086']
+        labels:
+          group: 'G6'
+          service: 'paiement'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
