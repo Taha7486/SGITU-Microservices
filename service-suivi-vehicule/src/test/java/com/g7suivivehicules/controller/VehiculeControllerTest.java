@@ -76,6 +76,23 @@ class VehiculeControllerTest {
     }
 
     @Test
+    void ajouterVehicule_WithInvalidData_ShouldReturnBadRequest() throws Exception {
+        // Arrange
+        VehiculeRequest invalidRequest = VehiculeRequest.builder()
+                .immatriculation("") // Invalide : obligatoire vide
+                .type(null) // Invalide : obligatoire null
+                .build();
+
+        // Act & Assert
+        mockMvc.perform(post("/api/suivi-vehicules/vehicules")
+                        .header("X-User-Id", UUID.randomUUID().toString())
+                        .header("X-Roles", "ROLE_ADMIN_G7")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void ajouterVehicule_WithoutAdminRole_ShouldReturnForbidden() throws Exception {
         // Arrange
         VehiculeRequest request = VehiculeRequest.builder()
