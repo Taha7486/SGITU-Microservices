@@ -3,6 +3,9 @@ spring:
     mongodb:
       uri: mongodb://localhost:27017/g8_analytics_test
       database: g8_analytics_test
+  mongodb:
+    embedded:
+      version: 7.0.0
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
