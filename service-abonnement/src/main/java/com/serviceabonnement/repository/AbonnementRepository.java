@@ -1,6 +1,7 @@
 package com.serviceabonnement.repository;
 
 import com.serviceabonnement.entity.Abonnement;
+import com.serviceabonnement.enums.StatutAbonnement;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,7 +12,12 @@ import java.util.List;
 @Repository
 public interface AbonnementRepository extends JpaRepository<Abonnement, Long> {
     List<Abonnement> findByUserId(Long userId);
+
+    List<Abonnement> findByStatut(StatutAbonnement statut);
+
     Page<Abonnement> findByUserId(Long userId, Pageable pageable);
+
     java.util.Optional<Abonnement> findByPaiementId(String paiementId);
+
     java.util.Optional<Abonnement> findByRemboursementId(String remboursementId);
 }

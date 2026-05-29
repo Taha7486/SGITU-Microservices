@@ -74,7 +74,7 @@ services:
     image: phpmyadmin:latest
     container_name: phpmyadmin
     ports:
-      - "8080:80"
+      - "8085:80"
     environment:
       - PMA_ARBITRARY=1
       - PMA_HOST=db-abonnement
@@ -83,7 +83,6 @@ services:
       - db-abonnement
     networks:
       - abonnement-db-network
-  # ---------------------------------------------------------------
   #  G3 — Service Utilisateur (port 8083)
   # ---------------------------------------------------------------
   user-service:
@@ -95,6 +94,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://g3-users-db:5432/${users_DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${users_DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${users_DB_PASSWORD}
+      SPRING_REDIS_HOST: g3-redis
+      SPRING_REDIS_PORT: 6379
       SERVER_PORT: 8083
       JWT_SECRET: ${JWT_SECRET:-SGITU_G3_JWT_SECRET_KEY_CHANGE_ME_IN_PRODUCTION_256BITS!!}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400}
@@ -102,6 +103,8 @@ services:
     depends_on:
       g3-users-db:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - sgitu-network
       - users-db-network
@@ -123,6 +126,14 @@ services:
       retries: 5
     networks:
       - users-db-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: g3-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - sgitu-network
 
   # ---------------------------------------------------------------
   #  G4 — (ajoutez votre service ici)
@@ -197,6 +208,35 @@ services:
   # ---------------------------------------------------------------
 
   # ---------------------------------------------------------------
+  # Services transversaux (Observabilité)
+  # ---------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - sgitu-network
+    depends_on:
+      - abonnement-service
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - sgitu-network
+    depends_on:
+      - prometheus
+
+  # ---------------------------------------------------------------
   # Services transversaux (Kafka)
   # ---------------------------------------------------------------
   kafka:
@@ -235,6 +275,7 @@ services:
       retries: 10
       start_period: 30s
 
+
 networks:
   sgitu-network:
     driver: bridge
@@ -250,3 +291,4 @@ volumes:
   abonnement_data:
   g7_db_data:
   kafka_data:
+  grafana-data:
