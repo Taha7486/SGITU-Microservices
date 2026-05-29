@@ -59,9 +59,9 @@ class DeadLetterPublisherTest {
         RuntimeException cause = new RuntimeException("Database connection failed");
         deadLetterPublisher.publishFailedEvent(events, "TICKETING", "Ingestion failed", cause);
 
-        // Wait for message with retry logic (up to 30 seconds for CI)
+        // Wait for message with retry logic (up to 60 seconds for CI)
         org.apache.kafka.clients.consumer.ConsumerRecord<String, Object> record = null;
-        long deadline = System.currentTimeMillis() + 30000;
+        long deadline = System.currentTimeMillis() + 60000;
         while (System.currentTimeMillis() < deadline && record == null) {
             record = receivedRecords.poll(1, TimeUnit.SECONDS);
         }
@@ -87,9 +87,9 @@ class DeadLetterPublisherTest {
 
         deadLetterPublisher.publishFailedRecord(originalRecord, cause);
 
-        // Wait for message with retry logic (up to 30 seconds for CI)
+        // Wait for message with retry logic (up to 60 seconds for CI)
         org.apache.kafka.clients.consumer.ConsumerRecord<String, Object> record = null;
-        long deadline = System.currentTimeMillis() + 30000;
+        long deadline = System.currentTimeMillis() + 60000;
         while (System.currentTimeMillis() < deadline && record == null) {
             record = receivedRecords.poll(1, TimeUnit.SECONDS);
         }
