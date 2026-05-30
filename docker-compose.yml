@@ -221,6 +221,7 @@ services:
       - sgitu-network
     depends_on:
       - abonnement-service
+      - g7-service
 
   grafana:
     image: grafana/grafana:latest
