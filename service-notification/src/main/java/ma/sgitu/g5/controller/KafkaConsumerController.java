@@ -8,10 +8,13 @@ import ma.sgitu.g5.dto.request.NotificationRequestDTO;
 import ma.sgitu.g5.dto.request.RecipientDTO;
 import ma.sgitu.g5.service.INotificationService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Header;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -123,8 +126,65 @@ public class KafkaConsumerController {
         }
     }
 
-    private NotificationRequestDTO buildDto(String id, String source, String type, String channel, 
-                                          String priority, String userId, Map<String, Object> rawEvent, 
+    // ── Dead Letter Topic : relance des messages en échec ─────────────────
+    /**
+     * Écoute tous les Dead Letter Topics générés par le {@link ma.sgitu.g5.config.KafkaConfig}.
+     * <p>
+     * Chaque topic applicatif possède son DLT correspondant (ex: ticket.created → ticket.created.DLT).
+     * Ce listener capture ces messages, extrait les métadonnées d'échec depuis les headers Kafka
+     * et tente une nouvelle livraison via {@link INotificationService#send}.
+     * </p>
+     */
+    @KafkaListener(
+        topicPattern = ".*\\.DLT",
+        groupId = "notification-group-dlt",
+        containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void handleDeadLetterEvent(ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
+        String originalTopic = extractHeader(record, KafkaHeaders.DLT_ORIGINAL_TOPIC);
+        String exceptionMessage = extractHeader(record, KafkaHeaders.DLT_EXCEPTION_MESSAGE);
+        String originalOffset = extractHeader(record, KafkaHeaders.DLT_ORIGINAL_OFFSET);
+
+        log.warn("[KAFKA-DLT] Message reçu sur DLT topic={} | originalTopic={} | offset={} | erreur={}",
+                record.topic(), originalTopic, originalOffset, exceptionMessage);
+
+        try {
+            Map<String, Object> event = objectMapper.readValue(record.value(), Map.class);
+
+            // Reconstitution du DTO à partir du payload original
+            String eventType = (String) event.getOrDefault("eventType",
+                               event.getOrDefault("type", "UNKNOWN_DLT").toString());
+            String userId    = String.valueOf(event.getOrDefault("userId", "unknown"));
+
+            // ID déterministe pour éviter les doublons lors de la relance
+            String deterministicId = "DLT-" + originalTopic + "-" + originalOffset + "-" + eventType;
+
+            NotificationRequestDTO dto = buildDto(
+                deterministicId, "DLT_RETRY", eventType, "EMAIL", "HIGH", userId, event, event
+            );
+            notificationService.send(dto);
+
+            acknowledgment.acknowledge();
+            log.info("[KAFKA-DLT] Message relancé avec succès depuis DLT | id={}", deterministicId);
+
+        } catch (Exception e) {
+            log.error("[KAFKA-DLT] Échec de la relance depuis DLT topic={} : {}", record.topic(), e.getMessage(), e);
+            // On accuse réception malgré tout pour éviter une boucle infinie sur le DLT
+            acknowledgment.acknowledge();
+        }
+    }
+
+    /**
+     * Extrait la valeur d'un header Kafka sous forme de String UTF-8.
+     * Retourne "N/A" si le header est absent.
+     */
+    private String extractHeader(ConsumerRecord<String, String> record, String headerKey) {
+        Header header = record.headers().lastHeader(headerKey);
+        return (header != null) ? new String(header.value(), StandardCharsets.UTF_8) : "N/A";
+    }
+
+    private NotificationRequestDTO buildDto(String id, String source, String type, String channel,
+                                          String priority, String userId, Map<String, Object> rawEvent,
                                           Map<String, Object> metadata) {
         NotificationRequestDTO dto = new NotificationRequestDTO();
         dto.setNotificationId(id);

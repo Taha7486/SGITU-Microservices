@@ -26,16 +26,30 @@ spring:
   # ── Kafka ─────────────────────────────────────────────────
   kafka:
     bootstrap-servers: localhost:9093
+
+    # ── Consommateur : résilience ───────────────────────────
     consumer:
       group-id: notification-group
-      auto-offset-reset: earliest
+      auto-offset-reset: earliest          # Rejouer depuis le début si pas d'offset
+      enable-auto-commit: false            # Commit manuel — AckMode.MANUAL dans KafkaConfig.java
+      max-poll-records: 10                 # Max messages par poll (évite la surcharge)
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "ma.sgitu.g5.notifications.dto.kafka"
+        session.timeout.ms: 30000          # Délai avant que le broker considère le consumer mort
+        heartbeat.interval.ms: 10000       # Fréquence des heartbeats (doit être < session.timeout)
+
+    # ── Producteur : fiabilité pour les DLT ─────────────────
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      retries: 3                           # Nombre de retentatives en cas d'erreur réseau
+      acks: all                            # Attendre l'ACK de tous les réplicas (durabilité max)
+      properties:
+        enable.idempotence: true           # Garantit exactly-once delivery côté producteur
+        max.in.flight.requests.per.connection: 5  # Compatible avec l'idempotence
+
     template:
       default-topic: token-validation
 
@@ -75,6 +89,19 @@ g5:
   # Templates par défaut
   templates:
     default-language: fr
+
+# ── Resilience4j — Circuit Breaker ──────────────────────────
+resilience4j:
+  circuitbreaker:
+    instances:
+      notificationProvider:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10            # Fenêtre de 10 appels pour calculer le taux d'échec
+        failure-rate-threshold: 50         # Ouvrir le circuit si ≥ 50% d'échecs
+        wait-duration-in-open-state: 30s   # Attendre 30s avant de passer en HALF_OPEN
+        permitted-number-of-calls-in-half-open-state: 3  # Appels test en HALF_OPEN
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
 
 # ── Logging ─────────────────────────────────────────────────
 logging:
@@ -128,6 +155,18 @@ spring:
 
   kafka:
     bootstrap-servers: kafka:9092
+    consumer:
+      enable-auto-commit: false
+      max-poll-records: 10
+      properties:
+        session.timeout.ms: 30000
+        heartbeat.interval.ms: 10000
+    producer:
+      retries: 3
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
 
   mail:
     host: mailhog

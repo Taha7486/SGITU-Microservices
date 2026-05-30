@@ -2,6 +2,7 @@ package ma.sgitu.g5.provider;
 
 import java.util.UUID;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.sgitu.g5.dto.response.SendResultDTO;
@@ -19,7 +20,19 @@ public class SendGridEmailAdapter implements IEmailProvider {
     @Value("${spring.mail.from:noreply@sgitu.ma}")
     private String fromAddress;
 
+    /**
+     * Envoie un e-mail via JavaMailSender (MailHog en dev, SendGrid en prod).
+     * Protégé par un Circuit Breaker "notificationProvider" :
+     * si le taux d'échec dépasse 50% sur 10 appels, le circuit s'ouvre 30s
+     * et la méthode fallback est appelée immédiatement.
+     *
+     * @param to      adresse e-mail du destinataire
+     * @param subject sujet du message
+     * @param body    corps du message
+     * @return {@link SendResultDTO} avec le résultat de l'envoi
+     */
     @Override
+    @CircuitBreaker(name = "notificationProvider", fallbackMethod = "sendFallback")
     public SendResultDTO send(String to, String subject, String body) {
         if (to == null || to.isBlank()) {
             SendResultDTO result = new SendResultDTO();
@@ -46,12 +59,23 @@ public class SendGridEmailAdapter implements IEmailProvider {
             return result;
         } catch (Exception e) {
             log.error("[G5-EMAIL] Echec -> {} | {}", to, e.getMessage());
-
-            SendResultDTO result = new SendResultDTO();
-            result.setSuccess(false);
-            result.setErrorCode(e.getMessage());
-            result.setRetryCount(0);
-            return result;
+            // Relancer pour que le Circuit Breaker comptabilise l'échec
+            throw new RuntimeException("[EMAIL] Échec envoi vers " + to + " : " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Fallback déclenché par le Circuit Breaker lorsque le circuit est OPEN
+     * ou lors d'une exception non rattrapée dans {@link #send}.
+     * Retourne un {@link SendResultDTO} d'échec afin que
+     * {@code NotificationServiceImpl.handleFailure()} prenne le relais.
+     */
+    public SendResultDTO sendFallback(String to, String subject, String body, Throwable ex) {
+        log.warn("[G5-EMAIL] Circuit Breaker actif — fallback pour {} | cause: {}", to, ex.getMessage());
+        SendResultDTO result = new SendResultDTO();
+        result.setSuccess(false);
+        result.setErrorCode("CIRCUIT_BREAKER_EMAIL_OPEN");
+        result.setRetryCount(0);
+        return result;
     }
 }
