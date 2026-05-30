@@ -229,4 +229,27 @@ public class SubscriptionEventPublisher {
             log.error("Échec de l'envoi direct de la notification Kafka (type: {}): {}", type, e.getMessage());
         }
     }
+
+    // --- CORE SEND METHOD (Direct userId/email version) ---
+    private void sendDirect(NotificationEventType type, Long userId, String email, String phone, Map<String, Object> metadata, NotificationPriority priority) {
+        RecipientDTO recipient = RecipientDTO.builder()
+                .userId(userId.toString())
+                .email(email)
+                .phone(phone)
+                .deviceToken(null)
+                .build();
+
+        NotificationEventDTO event = NotificationEventDTO.builder()
+                .notificationId(UUID.randomUUID().toString())
+                .sourceService(SOURCE_SERVICE)
+                .eventType(type)
+                .channel(NotificationChannel.EMAIL)
+                .priority(priority)
+                .recipient(recipient)
+                .metadata(metadata)
+                .build();
+
+        log.info("Publishing {} event for user {}", type, userId);
+        kafkaTemplate.send(topic, event);
+    }
 }
