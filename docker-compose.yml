@@ -11,11 +11,15 @@
 #  PORTS UTILISÉS :
 #  G2  → 8082 (abonnement-service), 3307 (db-abonnement), 8080 (phpmyadmin)
 #  G3  → 8083 (user-service), 5433 (users-db)
+#  G4  → 8084 (g4-coordination), 5434 (g4-postgres)
+#  G5  → 8085 (notification-service), 3314 (mysql-notification)
 #  G7  → 8087 (g7-service), 5437 (db-g7)
+#  Transverse → 9090 (prometheus), 3000 (grafana), 9093/29093 (kafka)
 #
 #  DÉMARRAGE :
-#    cp .env.example .env     # première fois
+#    cp .env.example .env     # première fois — remplir g4_DB_*, JWT_SECRET, etc.
 #    docker compose up -d
+#  Monitoring : http://localhost:9090/targets  |  Grafana http://localhost:3000 (admin/admin)
 # ================================================================
 
 services:
@@ -158,7 +162,7 @@ services:
       SGITU_JWT_SECRET: ${JWT_SECRET:-SGlUVS1HNC1KV1QtU0VDUkVOLURFVl8xMjhCaXRzX19VU0VfRU5WX1ZBUiMjIw==}
       SGITU_G3_URL: http://g3-user-service:8083
       SGITU_G5_URL: http://notification-service:8085
-      SGITU_G10_URL: http://notification-service:8085
+      SGITU_G10_URL: ${G10_BASE_URL:-http://g10-service:8090}
       SGITU_G7_URL: http://g7-service:8087
       SGITU_G1_URL: ${G1_BASE_URL:-http://g1-billetterie:8081}
       SGITU_G9_URL: ${G9_BASE_URL:-http://g9-incidents:8089}
@@ -307,33 +311,38 @@ services:
   # ---------------------------------------------------------------
 
   # ---------------------------------------------------------------
-  # Services transversaux (Observabilité)
+  # Observabilité transverse (Prometheus + Grafana — monorepo)
+  # Config scrape : monitoring/prometheus.yml (section par groupe G1–G10)
   # ---------------------------------------------------------------
   prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
+    image: prom/prometheus:v2.54.1
+    container_name: sgitu-prometheus
+    hostname: prometheus
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks:
       - sgitu-network
-    depends_on:
-      - abonnement-service
 
   grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
+    image: grafana/grafana:11.2.0
+    container_name: sgitu-grafana
+    hostname: grafana
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
       - grafana-data:/var/lib/grafana
-    networks:
-      - sgitu-network
     depends_on:
       - prometheus
+    networks:
+      - sgitu-network
 
   # ---------------------------------------------------------------
   # Services transversaux (Kafka)

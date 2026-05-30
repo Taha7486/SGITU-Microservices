@@ -36,7 +36,7 @@ class MissionVehicleConflictIntegrationTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin.technique", roles = { "OPERATOR", "DISPATCHER" })
+	@WithMockUser(username = "admin.technique", roles = { "G4_OPERATOR", "DISPATCHER" })
 	void deuxMissionsEnCoursMemeVehicule_retourne409() throws Exception {
 		LigneRequest ligne = new LigneRequest();
 		ligne.setCode("MIS-L1");

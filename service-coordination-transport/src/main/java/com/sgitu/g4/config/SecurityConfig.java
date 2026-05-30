@@ -30,15 +30,15 @@ public class SecurityConfig {
 	/**
 	 * Rôles alignés sur G3 / JWT G10 — voir {@code docs/ROLES_G3_G4_ALIGNMENT.md}.
 	 * <ul>
-	 * <li>{@code ROLE_OPERATOR} — gestionnaire réseau (offre transport).</li>
+	 * <li>{@code ROLE_G4_OPERATOR} — gestionnaire réseau (offre transport).</li>
 	 * <li>{@code ROLE_DISPATCHER} — gestionnaire flotte (missions, affectations, événements).</li>
-	 * <li>{@code ROLE_ADMIN_G4} / {@code ROLE_ADMIN} — supervision et droits complets.</li>
+	 * <li>{@code ROLE_G4_ADMIN} — supervision et droits complets G4.</li>
 	 * </ul>
 	 */
-	private static final String[] G4_READ = {"OPERATOR", "DISPATCHER", "ADMIN_G4", "ADMIN"};
-	private static final String[] G4_NETWORK_WRITE = {"OPERATOR", "ADMIN_G4", "ADMIN"};
-	private static final String[] G4_FLEET_WRITE = {"DISPATCHER", "ADMIN_G4", "ADMIN"};
-	private static final String[] G4_SUPERVISION = {"ADMIN_G4", "ADMIN"};
+	private static final String[] G4_READ = {"G4_OPERATOR", "DISPATCHER", "G4_ADMIN"};
+	private static final String[] G4_NETWORK_WRITE = {"G4_OPERATOR", "G4_ADMIN"};
+	private static final String[] G4_FLEET_WRITE = {"DISPATCHER", "G4_ADMIN"};
+	private static final String[] G4_SUPERVISION = {"G4_ADMIN"};
 
 	@Bean
 	SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -100,10 +100,9 @@ public class SecurityConfig {
 	@Bean
 	UserDetailsService userDetailsService(PasswordEncoder encoder) {
 		return new InMemoryUserDetailsManager(
-				User.withUsername("gestionnaire.reseau").password(encoder.encode("password")).roles("OPERATOR").build(),
+				User.withUsername("gestionnaire.reseau").password(encoder.encode("password")).roles("G4_OPERATOR").build(),
 				User.withUsername("gestionnaire.flotte").password(encoder.encode("password")).roles("DISPATCHER").build(),
-				User.withUsername("admin.technique").password(encoder.encode("password")).roles("ADMIN_G4").build(),
-				User.withUsername("g10.integration").password(encoder.encode("password")).roles("ADMIN").build()
+				User.withUsername("admin.technique").password(encoder.encode("password")).roles("G4_ADMIN").build()
 		);
 	}
 

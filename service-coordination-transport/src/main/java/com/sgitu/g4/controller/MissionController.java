@@ -40,7 +40,7 @@ public class MissionController {
 			@ApiResponse(responseCode = "201", description = "Mission créée"),
 			@ApiResponse(responseCode = "400", description = "Données invalides"),
 			@ApiResponse(responseCode = "401", description = "Non authentifié"),
-			@ApiResponse(responseCode = "403", description = "Rôle insuffisant (DISPATCHER ou ADMIN requis)"),
+			@ApiResponse(responseCode = "403", description = "Rôle insuffisant (DISPATCHER ou G4_ADMIN requis)"),
 			@ApiResponse(responseCode = "404", description = "Ligne, trajet ou affectation introuvable"),
 			@ApiResponse(responseCode = "409", description = "Véhicule déjà sur une mission EN_COURS",
 					content = @Content(schema = @Schema(example = """

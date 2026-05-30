@@ -69,10 +69,9 @@ voir `docs/CI_CD_G4.md` (workflows `.github/workflows/g4-ci.yml`, `g4-cd.yml` à
 
 | Compte | Rôle G3 | Usage |
 |--------|---------|--------|
-| `gestionnaire.reseau` | OPERATOR | Lignes, trajets, arrêts, horaires |
-| `gestionnaire.flotte` | DISPATCHER | Missions, affectations, événements |
-| `admin.technique` | ADMIN_G4 | Supervision + tous droits |
-| `g10.integration` | ADMIN | Intégration passerelle |
+| `gestionnaire.reseau` | G4_OPERATOR (`ROLE_G4_OPERATOR`) | Lignes, trajets, arrêts, horaires |
+| `gestionnaire.flotte` | DISPATCHER (`ROLE_DISPATCHER`) | Missions, affectations, événements |
+| `admin.technique` | G4_ADMIN (`ROLE_G4_ADMIN`) | Supervision + tous droits |
 
 En-tête des requêtes protégées : `Authorization: Bearer <token>`.
 
@@ -118,6 +117,7 @@ Si G3 retourne `[]`, aucun conducteur n’est enregistré avec `ROLE_DRIVER` —
 - **409 Conflict** : deux missions `EN_COURS` pour le même `vehiculeId`.
 - **Retard / déviation** : crée un événement ; la mission reste `EN_COURS`.
 - Rôles alignés sur **G3** / JWT **G10** — voir `docs/ROLES_G3_G4_ALIGNMENT.md`.
+- Accord **G4 ↔ G9** : un seul `ROLE_DISPATCHER` partagé — `docs/ALIGNEMENT_ROLES_G3_G4_G9.md`.
 
 ## Documentation
 

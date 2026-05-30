@@ -47,7 +47,7 @@ class SecurityRolesIntegrationTest {
 	}
 
 	@Test
-	@WithMockUser(username = "gestionnaire.reseau", roles = { "OPERATOR" })
+	@WithMockUser(username = "gestionnaire.reseau", roles = { "G4_OPERATOR" })
 	void operator_nePeutPasCreerMission() throws Exception {
 		MissionRequest req = new MissionRequest();
 		req.setVehiculeId("VH-SEC");

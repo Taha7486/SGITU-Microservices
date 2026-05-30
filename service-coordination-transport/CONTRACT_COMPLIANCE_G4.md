@@ -132,9 +132,9 @@ Tout document d’interface doit désigner **G1** pour les actions commerciales 
 
 | Rôle G3 (JWT) | Périmètre G4 |
 |---|---|
-| `ROLE_OPERATOR` | CRUD lignes, trajets, arrêts, horaires + lecture |
+| `ROLE_G4_OPERATOR` | CRUD lignes, trajets, arrêts, horaires + lecture |
 | `ROLE_DISPATCHER` | CRUD missions, affectations, événements, notifications + lecture |
-| `ROLE_ADMIN_G4`, `ROLE_ADMIN` | Supervision + tous droits d’écriture |
+| `ROLE_G4_ADMIN` | Supervision + tous droits d’écriture |
 | `ROLE_DRIVER` | Référence `chauffeurId` (G3) ; pas de CRUD back-office G4 |
 | `ROLE_PASSENGER`, `ROLE_STUDENT` | Hors périmètre G4 |
 

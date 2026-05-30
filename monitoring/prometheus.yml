@@ -1,0 +1,52 @@
+# SGITU — Prometheus (fichier canonique monorepo : monitoring/prometheus.yml)
+# Ancien emplacement racine prometheus.yml → migré ici pour jour d'intégration.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # --- G2 — Abonnement ---
+  - job_name: service-abonnement
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["service-abonnement:8082"]
+        labels:
+          group: G2
+          service: abonnement
+
+  # --- G3 — Utilisateurs (décommenter quand prêt) ---
+  # - job_name: g3-users
+  #   metrics_path: /actuator/prometheus
+  #   static_configs:
+  #     - targets: ["g3-user-service:8083"]
+  #       labels: { group: G3, service: users }
+
+  # --- G4 — Coordination des transports ---
+  - job_name: g4-coordination
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["g4-coordination:8084"]
+        labels:
+          group: G4
+          service: coordination-transport
+
+  # --- G5 — Notifications ---
+  # - job_name: g5-notifications
+  #   metrics_path: /actuator/prometheus
+  #   static_configs:
+  #     - targets: ["notification-service:8085"]
+  #       labels: { group: G5, service: notifications }
+
+  # --- G7 — Suivi véhicules ---
+  # - job_name: g7-suivi-vehicules
+  #   metrics_path: /actuator/prometheus
+  #   static_configs:
+  #     - targets: ["g7-service:8087"]
+  #       labels: { group: G7, service: suivi-vehicules }
+
+  # --- G8 / G9 / G10 — ajoutez un job par groupe ---

@@ -10,7 +10,7 @@ sequenceDiagram
     participant G4 as G4 Coordination
 
     U->>G3: login (prod) ou G4 /api/auth/login (dev)
-    G3-->>U: JWT roles=ROLE_OPERATOR|DISPATCHER|...
+    G3-->>U: JWT roles=ROLE_G4_OPERATOR|ROLE_DISPATCHER|ROLE_G4_ADMIN
     U->>G10: requête + Authorization Bearer
     G10->>G4: forward JWT inchangé
     G4->>G4: JwtAuthenticationFilter + SecurityConfig
@@ -23,12 +23,13 @@ G4 **ne fait pas confiance aveugle** à G10 : chaque requête est re-vérifiée 
 
 | Rôle JWT (G3) | Écriture réseau | Écriture flotte | Supervision |
 |---------------|:---------------:|:---------------:|:-----------:|
-| `ROLE_OPERATOR` | Oui | Non | Non |
+| `ROLE_G4_OPERATOR` | Oui | Non | Non |
 | `ROLE_DISPATCHER` | Non | Oui | Non |
-| `ROLE_ADMIN_G4` | Oui | Oui | Oui |
-| `ROLE_ADMIN` | Oui | Oui | Oui |
+| `ROLE_G4_ADMIN` | Oui | Oui | Oui |
 
 Endpoints **`/api/g4/incident-impacts`** : même règle que missions/événements (DISPATCHER+).
+
+**Alignement G9 :** un seul `ROLE_DISPATCHER` G3 pour la même personne qui appelle G4 et G9 — voir `docs/ALIGNEMENT_ROLES_G3_G4_G9.md`.
 
 ## Endpoints publics (sans JWT)
 
@@ -47,7 +48,7 @@ Variable : `SGITU_JWT_SECRET` — **identique** sur G3, G10 et G4 en intégratio
 1. Login → token avec rôle visible (decode jwt.io)
 2. `GET /api/g4/missions` avec Bearer → **200**
 3. DISPATCHER tente `POST /api/g4/lignes` → **403**
-4. OPERATOR tente `POST /api/g4/missions` → **403**
+4. G4_OPERATOR tente `POST /api/g4/missions` → **403**
 5. (Optionnel) Token G10 → appel G4 via gateway
 
 Tests automatisés : `SecurityRolesIntegrationTest.java`.
@@ -56,8 +57,8 @@ Tests automatisés : `SecurityRolesIntegrationTest.java`.
 
 | User | Rôle |
 |------|------|
-| gestionnaire.reseau | OPERATOR |
+| gestionnaire.reseau | G4_OPERATOR |
 | gestionnaire.flotte | DISPATCHER |
-| admin.technique | ADMIN_G4 |
+| admin.technique | G4_ADMIN |
 
 Mot de passe : `password`

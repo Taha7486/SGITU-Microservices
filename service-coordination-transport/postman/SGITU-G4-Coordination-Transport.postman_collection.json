@@ -52,7 +52,7 @@
 							"raw": "{\n  \"username\": \"gestionnaire.reseau\",\n  \"password\": \"password\"\n}"
 						},
 						"url": "{{baseUrl}}/api/auth/login",
-						"description": "Comptes démo (password) alignés G3 : gestionnaire.reseau = ROLE_OPERATOR, gestionnaire.flotte = ROLE_DISPATCHER, admin.technique = ROLE_ADMIN_G4, g10.integration = ROLE_ADMIN. Voir docs/ROLES_G3_G4_ALIGNMENT.md"
+						"description": "Comptes démo (password) alignés G3 : gestionnaire.reseau = ROLE_G4_OPERATOR, gestionnaire.flotte = ROLE_DISPATCHER, admin.technique = ROLE_G4_ADMIN. Voir docs/ROLES_G3_G4_ALIGNMENT.md"
 					}
 				}
 			]
@@ -443,7 +443,7 @@
 						},
 						"method": "GET",
 						"url": "{{baseUrl}}/api/g4/pending-notifications",
-						"description": "Utiliser login admin.technique (ADMIN_G4) si 403."
+						"description": "Utiliser login admin.technique (G4_ADMIN) si 403."
 					}
 				},
 				{

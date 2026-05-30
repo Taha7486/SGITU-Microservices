@@ -84,7 +84,7 @@
   \vspace{0.3cm}
   \begin{columns}
     \column{0.48\textwidth}
-    \textbf{Gestionnaire réseau (OPERATOR)}
+    \textbf{Gestionnaire réseau (G4\_OPERATOR)}
     \begin{itemize}
       \item Lignes, trajets, arrêts, horaires
     \end{itemize}
@@ -204,7 +204,7 @@
 \begin{frame}{Sécurité JWT}
   \begin{itemize}
     \item Filtrage \textbf{local} des rôles dans chaque requête (G4 ne fait pas confiance aveugle à G10)
-    \item Rôles G3 : \texttt{ROLE\_OPERATOR}, \texttt{ROLE\_DISPATCHER}, \texttt{ROLE\_ADMIN\_G4}
+    \item Rôles G3 : \texttt{ROLE\_G4\_OPERATOR}, \texttt{ROLE\_DISPATCHER}, \texttt{ROLE\_G4\_ADMIN}
     \item Validation croisée : token G3 $\rightarrow$ appel G4 (capture Postman)
     \item Secret partagé : \texttt{SGITU\_JWT\_SECRET}
   \end{itemize}
