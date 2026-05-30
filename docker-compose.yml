@@ -12,15 +12,15 @@
 #  G2  → 8082 (abonnement-service), 3307 (db-abonnement), 8080 (phpmyadmin)
 #  G3  → 8083 (user-service), 5433 (users-db)
 #  G4  → 8084 (g4-coordination), 5434 (g4-postgres)
-#  G5  → 8085 (notification-service), 3314 (mysql-notification)
+#  G5  → 8085 (notification-service) — à ajouter par le groupe G5
 #  G7  → 8087 (g7-service), 5437 (db-g7)
 #  Transverse → 9090 (prometheus), 3000 (grafana), 9093/29093 (kafka)
 #
 #  DÉMARRAGE :
 #    cp .env.example .env     # première fois — remplir g4_DB_*, JWT_SECRET, etc.
 #    docker compose up -d
-#  Monitoring : prometheus.yml (racine) — http://localhost:9090/targets | Grafana :3000
-#  Dashboard G4 local : service-coordination-transport/ + docker compose --profile monitoring
+#  Monitoring (tous groupes) : prometheus.yml + services prometheus/grafana en bas du fichier
+#  G4 : job scrape dans prometheus.yml — dashboard Grafana détaillé en local (voir section G4)
 # ================================================================
 
 services:
@@ -142,6 +142,11 @@ services:
 
   # ---------------------------------------------------------------
   #  G4 — Service Coordination Transport (port 8084)
+  #  Services : g4-coordination + g4-postgres (ci-dessous)
+  #  Monitoring G4 dans ce monorepo :
+  #    - Job Prometheus → fichier prometheus.yml (racine), target g4-coordination:8084
+  #    - Pas de conteneur prometheus/grafana ici (partagés en bas, section transverse)
+  #    - Dashboard Grafana G4 (dev) → service-coordination-transport/ + profil monitoring
   # ---------------------------------------------------------------
   g4-coordination:
     build:
@@ -197,55 +202,7 @@ services:
       - g4-db-network
 
   # ---------------------------------------------------------------
-  #  G5 — Service Notifications (port 8085)
-  # ---------------------------------------------------------------
-  mysql-notification:
-    image: mysql:8.0
-    container_name: sgitu-mysql-notification
-    hostname: mysql-notification
-    ports:
-      - "3314:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${notification_MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: notifications_db
-      MYSQL_USER: sgitu
-      MYSQL_PASSWORD: ${notification_MYSQL_PASSWORD:-sgitu}
-    volumes:
-      - notification_mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${notification_MYSQL_ROOT_PASSWORD:-root}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      - sgitu-network
-
-  notification-service:
-    build:
-      context: ./service-notification
-      dockerfile: Dockerfile
-    container_name: g5-notification-service
-    hostname: notification-service
-    ports:
-      - "8085:8085"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-notification:3306/notifications_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: sgitu
-      SPRING_DATASOURCE_PASSWORD: ${notification_MYSQL_PASSWORD:-sgitu}
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      JWT_SECRET: ${JWT_SECRET:-SGlUVS1HNC1KV1QtU0VDUkVOLURFVl8xMjhCaXRzX19VU0VfRU5WX1ZBUiMjIw==}
-      SPRING_PROFILES_ACTIVE: docker
-    depends_on:
-      mysql-notification:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-    networks:
-      - sgitu-network
-
-  # ---------------------------------------------------------------
-  #  G5 — (legacy placeholder supprimé)
+  #  G5 — Service Notifications (port 8085) — à ajouter par le groupe G5
   # ---------------------------------------------------------------
 
   # ---------------------------------------------------------------
@@ -313,8 +270,8 @@ services:
   # ---------------------------------------------------------------
 
   # ---------------------------------------------------------------
-  # Observabilité transverse (alignement repo promo — prometheus.yml racine)
-
+  # Observabilité transverse (TOUS les groupes — repo promo)
+  # prometheus.yml à la racine : chaque groupe y ajoute un job (G4 = g4-coordination:8084)
   # ---------------------------------------------------------------
   prometheus:
     image: prom/prometheus:latest
@@ -327,6 +284,7 @@ services:
       - sgitu-network
     depends_on:
       - g7-service
+      - g4-coordination
 
   grafana:
     image: grafana/grafana:latest
@@ -399,6 +357,5 @@ volumes:
   abonnement_data:
   g7_db_data:
   g4_pg_data:
-  notification_mysql_data:
   kafka_data:
   grafana-data:
