@@ -44,10 +44,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 if (jwtUtils.isTokenValid(jwt)) {
-                    String role = jwtUtils.extractRole(jwt);
+                    List<String> roles = jwtUtils.extractRoles(jwt);
                     
-                    // On fait confiance au rôle fourni par la gateway (format ROLE_USER, ROLE_ADMIN, etc.)
-                    List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
+                    List<SimpleGrantedAuthority> authorities = roles.stream()
+                            .map(SimpleGrantedAuthority::new)
+                            .collect(Collectors.toList());
 
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userEmail,

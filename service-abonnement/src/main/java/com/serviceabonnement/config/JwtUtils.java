@@ -15,8 +15,13 @@ public class JwtUtils {
         return (String) extractAllClaims(token).get("sub");
     }
 
-    public String extractRole(String token) {
-        return (String) extractAllClaims(token).get("role");
+    @SuppressWarnings("unchecked")
+    public java.util.List<String> extractRoles(String token) {
+        Object roles = extractAllClaims(token).get("roles");
+        if (roles instanceof java.util.List) {
+            return (java.util.List<String>) roles;
+        }
+        return java.util.Collections.emptyList();
     }
 
     @SuppressWarnings("unchecked")
