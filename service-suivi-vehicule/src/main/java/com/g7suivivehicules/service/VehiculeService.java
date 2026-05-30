@@ -4,6 +4,7 @@ import com.g7suivivehicules.dto.VehiculeRequest;
 import com.g7suivivehicules.dto.VehiculeResponse;
 import com.g7suivivehicules.entity.Vehicule;
 import com.g7suivivehicules.exception.VehiculeNotFoundException;
+import jakarta.persistence.EntityNotFoundException;
 import com.g7suivivehicules.repository.VehiculeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +25,7 @@ public class VehiculeService {
     @Transactional
     public VehiculeResponse createVehicule(VehiculeRequest request) {
         log.info("Creation d'un nouveau vehicule: {}", request.getImmatriculation());
-        
+
         Vehicule vehicule = Vehicule.builder()
                 .immatriculation(request.getImmatriculation())
                 .type(request.getType())
