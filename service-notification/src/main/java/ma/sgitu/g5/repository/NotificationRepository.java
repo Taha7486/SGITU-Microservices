@@ -28,6 +28,12 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
      */
     Optional<Notification> findFirstByNotificationId(String notificationId);
 
+    /**
+     * Recherche les notifications FAILED éligibles au retry automatique.
+     * Utilisé par RetryScheduler (toutes les 5 minutes).
+     */
+    java.util.List<Notification> findByStatusAndRetryCountLessThan(NotificationStatus status, int maxRetryCount);
+
     // Méthodes pour l'administration
     long countByStatus(NotificationStatus status);
     long countByChannel(String channel);
