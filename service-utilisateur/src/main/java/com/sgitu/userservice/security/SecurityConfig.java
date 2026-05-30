@@ -40,8 +40,9 @@ public class SecurityConfig {
                     res.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden"))
             )
             .authorizeHttpRequests(auth -> auth
-                // Public -- login (G3 issues the JWT)
+                // Public -- login & refresh (G3 issues the JWT)
                 .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/refresh").permitAll()
                 //.requestMatchers(HttpMethod.POST, "/auth/logout").permitAll()
 
                 // Public -- account creation (called by G10 on registration)
