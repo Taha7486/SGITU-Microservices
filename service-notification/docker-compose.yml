@@ -155,8 +155,11 @@ services:
       TWILIO_FROM_PHONE: ${TWILIO_FROM_PHONE}
       # JWT (fourni par G10)
       JWT_SECRET: ${JWT_SECRET}
+      FIREBASE_CREDENTIALS_PATH: /app/firebase-adminsdk.json
       # Profil actif
       SPRING_PROFILES_ACTIVE: docker
+    volumes:
+      - ./firebase-adminsdk.json:/app/firebase-adminsdk.json:ro
     restart: on-failure
     depends_on:
       mysql-notification:

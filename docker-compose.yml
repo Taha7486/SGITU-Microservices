@@ -230,7 +230,10 @@ services:
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_FROM_PHONE: ${TWILIO_FROM_PHONE}
       JWT_SECRET: ${JWT_SECRET}
+      FIREBASE_CREDENTIALS_PATH: /app/firebase-adminsdk.json
       SPRING_PROFILES_ACTIVE: docker
+    volumes:
+      - ./service-notification/firebase-adminsdk.json:/app/firebase-adminsdk.json:ro
     depends_on:
       mysql-notification:
         condition: service_healthy

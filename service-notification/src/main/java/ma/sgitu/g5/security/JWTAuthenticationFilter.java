@@ -100,9 +100,17 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
                     .parseClaimsJws(token)
                     .getBody();
 
-            userId             = claims.getSubject();
+            userId             = claims.getSubject(); // Correspond au 'sub' (email)
             tokenSourceService = claims.get("sourceService", String.class);
-            roles              = claims.get("roles", List.class);
+            
+            // Le Gateway envoie 'role' (singulier) : ROLE_USER, ROLE_ADMIN, etc.
+            // On le convertit en liste pour la compatibilité interne
+            Object roleClaim = claims.get("role");
+            if (roleClaim instanceof String) {
+                roles = Collections.singletonList((String) roleClaim);
+            } else {
+                roles = claims.get("roles", List.class);
+            }
             tokenValid         = true;
 
             log.info("[JWT] TraceId={} | Token valide | User={} | Source={} | Groupe={}",
