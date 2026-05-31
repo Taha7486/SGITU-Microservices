@@ -2,14 +2,25 @@
   "info": {
     "_postman_id": "g8-analytics-collection",
     "name": "G8 Analytics Service",
-    "description": "Full test suite for the G8 Analytics Service.\n\nIMPORTANT:\n- Every ingestion event must include \"schemaVersion\": 1\n- Incidents require \"latitude\" and \"longitude\" (zones become e.g. \"33.57,-7.59\")\n- Timestamps use {{today}} — keep collection variables in sync (run any request once)\n\nRun in order:\n1. Ingest data (01-06)\n2. Wait ~60 seconds for the scheduler\n3. Read analytics (07-13) + monitoring (16-17)\n4. Generate and fetch a report (14-15)\n5. Grafana: http://localhost:3000 (admin / sgitu2026)",
+    "description": "Full test suite for the G8 Analytics Service.\n\nRun in order:\n0. Security (Phase 0) — verify 401 then generate JWT token\n1. Ingest data (01-06)\n2. Wait ~60 seconds for the scheduler\n3. Read analytics (07-13) + monitoring (16-17)\n4. Generate and fetch a report (14-15)\n5. Grafana: http://localhost:3000 (admin / sgitu2026)\n\nNOTE: Request '00b - Generate JWT Token' MUST be run before any authenticated call. The token is saved automatically into {{authToken}} and applied to every subsequent request via the collection-level pre-request script.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
   },
   "event": [
     {
       "listen": "prerequest",
       "script": {
         "exec": [
+          "// Auto-set date variables",
           "var today = new Date().toISOString().split('T')[0];",
           "pm.collectionVariables.set('today', today);",
           "pm.collectionVariables.set('ts08', today + 'T08:00:00Z');",
@@ -32,19 +43,155 @@
       "type": "string"
     },
     {
+      "key": "authToken",
+      "value": "",
+      "type": "string",
+      "description": "Populated automatically after running request '00b - Generate JWT Token'"
+    },
+    {
       "key": "reportId",
       "value": "",
       "type": "string",
-      "description": "Populated automatically after running request 14"
+      "description": "Populated automatically after running request 15"
     },
     {
       "key": "today",
       "value": "",
       "type": "string",
       "description": "Auto-set to today's date (YYYY-MM-DD) by the collection pre-request script"
+    },
+    {
+      "key": "jwtSecret",
+      "value": "sgitu_g8_secret_key_2025_very_long_secret_for_analytics",
+      "type": "string",
+      "description": "Shared dev secret matching application.yml jwt.secret"
     }
   ],
   "item": [
+    {
+      "name": "--- PHASE 0: Security ---",
+      "item": [
+        {
+          "name": "00a - No Token (Expect 401 Unauthorized)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns 401 Unauthorized without a JWT token', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test('Response body contains error field', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('error');",
+                  "    pm.expect(json.error).to.eql('Unauthorized');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "dashboard"]
+            },
+            "description": "Sends a request with NO Authorization header.\n\nExpected: 401 Unauthorized\n\nThis confirms the JWT security filter is active and rejects unauthenticated callers."
+          }
+        },
+        {
+          "name": "00b - Generate JWT Token",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Build a HS256 JWT using the CryptoJS library bundled in Postman",
+                  "var secret = pm.collectionVariables.get('jwtSecret');",
+                  "",
+                  "// Header",
+                  "var header = { alg: 'HS256', typ: 'JWT' };",
+                  "",
+                  "// Payload — mirror what seed-dashboard-data.ps1 generates",
+                  "var now = Math.floor(Date.now() / 1000);",
+                  "var payload = {",
+                  "    sub: 'admin',",
+                  "    roles: ['ROLE_ADMIN', 'ROLE_ANALYTICS'],",
+                  "    iat: now,",
+                  "    exp: now + 86400  // 24 hours",
+                  "};",
+                  "",
+                  "function base64url(str) {",
+                  "    return btoa(str)",
+                  "        .replace(/\\+/g, '-')",
+                  "        .replace(/\\//g, '_')",
+                  "        .replace(/=/g, '');",
+                  "}",
+                  "",
+                  "var encodedHeader  = base64url(JSON.stringify(header));",
+                  "var encodedPayload = base64url(JSON.stringify(payload));",
+                  "var signingInput   = encodedHeader + '.' + encodedPayload;",
+                  "",
+                  "// HMAC-SHA256 via CryptoJS",
+                  "var signature = CryptoJS.HmacSHA256(signingInput, secret);",
+                  "var encodedSig = CryptoJS.enc.Base64.stringify(signature)",
+                  "    .replace(/\\+/g, '-')",
+                  "    .replace(/\\//g, '_')",
+                  "    .replace(/=/g, '');",
+                  "",
+                  "var token = signingInput + '.' + encodedSig;",
+                  "pm.collectionVariables.set('authToken', token);",
+                  "console.log('JWT generated and stored in {{authToken}}');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Token was generated and stored', function () {",
+                  "    var token = pm.collectionVariables.get('authToken');",
+                  "    pm.expect(token).to.be.a('string').and.to.have.length.above(20);",
+                  "    console.log('authToken is now: ' + token.substring(0, 40) + '...');",
+                  "});",
+                  "pm.test('Dashboard responds 200 OK with valid JWT', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "dashboard"]
+            },
+            "description": "Generates a signed HS256 JWT token in the pre-request script using the shared dev secret, saves it into {{authToken}}, then immediately uses it to hit the dashboard endpoint.\n\nExpected: 200 OK (confirming the token is valid).\n\nAfter this request, ALL subsequent requests in the collection automatically carry the token via the collection-level Bearer auth."
+          }
+        }
+      ]
+    },
     {
       "name": "--- PHASE 1: Ingest Data ---",
       "item": [
@@ -72,7 +219,7 @@
                 }
               }
             },
-            "description": "Simulates ticket validations from validators on multiple lines. Includes validated, expired, and various times of day to trigger peak-hour analysis.\n\nExpected response: 201 Created with status=SUCCESS"
+            "description": "Simulates ticket validations from validators on multiple lines.\n\nExpected response: 201 Created with status=SUCCESS"
           }
         },
         {
@@ -99,7 +246,7 @@
                 }
               }
             },
-            "description": "GPS-based zones (rounded to 2 decimals). INC-001 and INC-004 share coordinates → repeat zone \"33.57,-7.59\" (INC_05).\n\nExpected response: 201 Created with status=SUCCESS"
+            "description": "GPS-based zones (rounded to 2 decimals). INC-001 and INC-004 share coordinates → repeat zone \"33.57,-7.59\".\n\nExpected response: 201 Created with status=SUCCESS"
           }
         },
         {
@@ -126,7 +273,7 @@
                 }
               }
             },
-            "description": "Simulates payment transactions via POS and kiosk terminals. Includes both CARD and CASH methods, plus one failed transaction.\n\nExpected response: 201 Created with status=SUCCESS"
+            "description": "Simulates payment transactions via POS and kiosk terminals. Includes CARD and CASH methods, plus one failed transaction.\n\nExpected response: 201 Created with status=SUCCESS"
           }
         },
         {
@@ -153,7 +300,7 @@
                 }
               }
             },
-            "description": "Simulates subscription lifecycle events: new registrations, renewals, and a cancellation. Tests SUB_01 through SUB_05 aggregations.\n\nExpected response: 201 Created with status=SUCCESS"
+            "description": "Simulates subscription lifecycle events: new registrations, renewals, and a cancellation.\n\nExpected response: 201 Created with status=SUCCESS"
           }
         },
         {
@@ -180,7 +327,7 @@
                 }
               }
             },
-            "description": "NOTE: In production, G7 sends vehicle data via Kafka. This REST endpoint is for testing only.\n\nSimulates telemetry from active buses and one tram in maintenance. BUS_202 is overcapacity (occupancy=120) and will affect VEH_03.\n\nExpected response: 201 Created with status=SUCCESS"
+            "description": "NOTE: In production, G7 sends vehicle data via Kafka. This REST endpoint is for testing only.\n\nExpected response: 201 Created with status=SUCCESS"
           }
         },
         {
@@ -216,8 +363,11 @@
       "name": "--- WAIT ~60 SECONDS FOR SCHEDULER ---",
       "item": [
         {
-          "name": "07 - Actuator Health",
+          "name": "07 - Actuator Health (Public — No Token Required)",
           "request": {
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "header": [],
             "url": {
@@ -225,7 +375,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["actuator", "health"]
             },
-            "description": "Spring Boot health (used by Docker). Expect status UP when MongoDB is reachable."
+            "description": "Spring Boot health endpoint — public, no JWT needed. Expect status UP when MongoDB is reachable."
           }
         }
       ]
@@ -235,6 +385,20 @@
       "item": [
         {
           "name": "08 - GET Dashboard (All Snapshots)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is an array', function () {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -243,11 +407,22 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "analytics", "dashboard"]
             },
-            "description": "Returns ALL current snapshots in one call. This is the main dashboard endpoint used by G10.\n\nExpected: 200 OK with an array of all StatSnapshot documents (FREQ_01 through SUB_05)."
+            "description": "Returns ALL current snapshots in one call. Main dashboard endpoint used by G10.\n\nExpected: 200 OK with an array of all StatSnapshot documents."
           }
         },
         {
           "name": "09 - GET Trips Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -256,11 +431,22 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "analytics", "trips", "summary"]
             },
-            "description": "Returns only TRIPS snapshots (FREQ_01 through FREQ_07):\n- FREQ_01: Total validations count\n- FREQ_02: Peak hour distribution map\n- FREQ_03: Peak hours list\n- FREQ_04: Avg daily passengers\n- FREQ_05: Line usage ranking\n- FREQ_06: Station footfall\n- FREQ_07: Weekend vs weekday ratio"
+            "description": "Returns TRIPS snapshots (FREQ_01 through FREQ_07)."
           }
         },
         {
           "name": "10 - GET Revenue Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -269,11 +455,22 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "analytics", "revenue", "summary"]
             },
-            "description": "Returns REVENUE snapshots (REV_01 through REV_05):\n- REV_01: Total revenue\n- REV_02: Revenue by ticket type\n- REV_03: Avg revenue per passenger\n- REV_04: Payment method breakdown (CARD vs CASH)\n- REV_05: Revenue trend"
+            "description": "Returns REVENUE snapshots (REV_01 through REV_05)."
           }
         },
         {
           "name": "11 - GET Incidents Stats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -282,11 +479,22 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "analytics", "incidents", "stats"]
             },
-            "description": "Returns INCIDENTS snapshots (INC_01 through INC_05):\n- INC_01: Total incidents count\n- INC_02: Incidents by type (accident, breakdown, delay)\n- INC_03: Incidents by zone\n- INC_04: Average resolution time in minutes\n- INC_05: Repeat incident zones (zones with more than 1 incident)"
+            "description": "Returns INCIDENTS snapshots (INC_01 through INC_05)."
           }
         },
         {
           "name": "12 - GET Vehicles Activity",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -295,11 +503,22 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "analytics", "vehicles", "activity"]
             },
-            "description": "Returns VEHICLES snapshots (VEH_01 through VEH_05):\n- VEH_01: Active vehicle count\n- VEH_02: Average punctuality rate (%)\n- VEH_03: Delay distribution / overcapacity count\n- VEH_04: Vehicle utilization rate\n- VEH_05: Average speed by line"
+            "description": "Returns VEHICLES snapshots (VEH_01 through VEH_05)."
           }
         },
         {
           "name": "13 - GET Subscriptions Stats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -308,11 +527,22 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "analytics", "subscriptions", "stats"]
             },
-            "description": "Returns SUBSCRIPTIONS snapshots (SUB_01 through SUB_05):\n- SUB_01: Active subscriptions count\n- SUB_02: New subscriptions today\n- SUB_03: Renewal rate\n- SUB_04: Churn rate (%)\n- SUB_05: Subscription type distribution"
+            "description": "Returns SUBSCRIPTIONS snapshots (SUB_01 through SUB_05)."
           }
         },
         {
           "name": "14 - GET Users Stats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -336,6 +566,7 @@
               "listen": "test",
               "script": {
                 "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });",
                   "var json = pm.response.json();",
                   "if (json && json.id) {",
                   "    pm.collectionVariables.set('reportId', json.id);",
@@ -368,11 +599,22 @@
                 }
               }
             },
-            "description": "Generates a full analytics report for today bundling all requested snapshot types.\n\nThe test script in this request automatically saves the returned report ID into the {{reportId}} collection variable, so request 16 can use it directly.\n\nExpected: 200 OK with a Report object containing all snapshots."
+            "description": "Generates a full analytics report for today. The test script automatically saves the returned report ID into {{reportId}} for use in request 16."
           }
         },
         {
           "name": "16 - GET Report by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -381,7 +623,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "analytics", "reports", "{{reportId}}"]
             },
-            "description": "Retrieves the report generated in request 15 using the {{reportId}} variable that was automatically saved.\n\nExpected: 200 OK with the full Report object.\nIf you get 404, make sure you ran request 15 first so the reportId variable is populated."
+            "description": "Retrieves the report generated in request 15 using the {{reportId}} variable.\n\nExpected: 200 OK with the full Report object.\nIf you get 404, make sure you ran request 15 first."
           }
         }
       ]
@@ -391,6 +633,17 @@
       "item": [
         {
           "name": "17 - Ingest Empty Batch (Expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 Bad Request', function () { pm.response.to.have.status(400); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -413,11 +666,28 @@
                 }
               }
             },
-            "description": "Sends an empty array to test validation. The @NotEmpty constraint on the controller should reject this.\n\nExpected: 400 Bad Request"
+            "description": "Sends an empty array to test the @NotEmpty validation constraint.\n\nExpected: 400 Bad Request"
           }
         },
         {
           "name": "18 - Ingest with Missing Timestamp (Expect 207 PARTIAL)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 207 Multi-Status', function () { pm.response.to.have.status(207); });",
+                  "pm.test('Body has PARTIAL status', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql('PARTIAL');",
+                  "    pm.expect(json.totalAccepted).to.eql(1);",
+                  "    pm.expect(json.totalRejected).to.eql(1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -440,11 +710,22 @@
                 }
               }
             },
-            "description": "Sends a batch where one event is valid and one is missing its required timestamp field.\n\nExpected: 207 Multi-Status with status=PARTIAL, totalAccepted=1, totalRejected=1"
+            "description": "Sends a mixed batch: one valid event and one missing its required timestamp.\n\nExpected: 207 Multi-Status with status=PARTIAL, totalAccepted=1, totalRejected=1"
           }
         },
         {
           "name": "19 - GET Report with Invalid ID (Expect 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 Not Found', function () { pm.response.to.have.status(404); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],

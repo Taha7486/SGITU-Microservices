@@ -61,6 +61,9 @@ class ThresholdAlertServiceCircuitBreakerTest {
                 .thenReturn(Optional.of(snapshot));
         when(snapshotRepository.findTop30ByStatIdOrderByComputedAtDesc(anyString()))
                 .thenReturn(java.util.List.of(snapshot));
+        // Mock successful G5 call
+        when(restTemplate.postForObject(anyString(), any(), eq(Void.class)))
+                .thenReturn(null);
 
         assertThatCode(() -> thresholdAlertService.detect())
                 .doesNotThrowAnyException();

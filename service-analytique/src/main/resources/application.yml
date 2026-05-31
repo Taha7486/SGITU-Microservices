@@ -28,8 +28,15 @@ kafka:
     vehicle: ${KAFKA_TOPIC_VEHICLE:g6-vehicle-events}
     incident: ${KAFKA_TOPIC_INCIDENT:g7-incident-events}
     user: ${KAFKA_TOPIC_USER:g1-user-events}
+    dead-letter: ${KAFKA_TOPIC_DLT:g8-analytics-dlt}
+    analytics-results: ${KAFKA_TOPIC_ANALYTICS:g8-analytics-results}
+    ml-predictions: ${KAFKA_TOPIC_ML_PREDICTIONS:g8-ml-predictions}
   topic:
     crossgroup: sgitu.crossgroup.events
+  retry:
+    interval: 1000
+    max-attempts: 3
+
 
 logging:
   level:
@@ -63,13 +70,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: always
   metrics:
     tags:
-      application: g8-analytics-service
+      application: ${spring.application.name}
+
 
 # SpringDoc OpenAPI Configuration
 springdoc:

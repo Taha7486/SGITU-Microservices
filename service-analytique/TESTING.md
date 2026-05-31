@@ -53,52 +53,17 @@ Wait for all services to show as `Up (healthy)` or `Started`.
 
 ## 4. Manual Verification Steps
 
-If you want to manually test the API via `curl` or Postman, follow these steps:
+The recommended way to manually test the API is using the **Postman Collection** located in `docs/G8_Analytics_Postman_Collection.json`.
 
-### Phase 3 - Security & JWT
-Without a token, endpoints will correctly block you:
-```powershell
-curl -i http://localhost:8088/api/v1/analytics/dashboard
-```
-**Expected:** `401 Unauthorized`
+### How to use the Postman Collection:
 
-*(To obtain a valid JWT manually for testing, run the `run-integration-tests.ps1` script once to auto-generate a cryptographic JWT in the logs, or use a tool like jwt.io with the secret key `sgitu_g8_secret_key_2025_very_long_secret_for_analytics` to generate an `HS256` token with `sub: admin-agent`, `roles: ["ADMIN"]`.)*
-
-### Phase 4 - Data Ingestion
-Ingest a valid Ticketing event (assuming `$token` is your JWT):
-```powershell
-curl -i -X POST http://localhost:8088/api/v1/ingestion/tickets `
-  -H "Content-Type: application/json" `
-  -H "Authorization: Bearer $token" `
-  -d '[{"schemaVersion":1,"timestamp":"2026-05-30T10:00:00Z","userId":"user-001","status":"validated","line":"L1","stationId":"ST-101"}]'
-```
-**Expected:** `201 Created`
-
-### Phase 5 - Async Kafka Streaming
-Push a mock event directly into the Kafka broker:
-```powershell
-docker exec -i g8-kafka kafka-console-producer `
-  --bootstrap-server localhost:9092 `
-  --topic g2-ticketing-events `
-  <<EOF
-{"schemaVersion":1,"timestamp":"2026-05-30T10:05:00Z","userId":"kafka-stream-user","status":"validated","line":"L2","stationId":"ST-202"}
-EOF
-```
-Verify the analytics service consumed it by reading its logs:
-```powershell
-docker compose logs g8-analytics-service --tail=20
-```
-
-### Phase 6 - ETL & ML Predictions
-Manually trigger the scheduled analytics aggregations job:
-```powershell
-curl -i http://localhost:8088/test/run
-```
-Retrieve the compiled dashboard metrics:
-```powershell
-curl -s http://localhost:8088/api/v1/analytics/dashboard `
-  -H "Authorization: Bearer $token"
-```
+1. Import `docs/G8_Analytics_Postman_Collection.json` into Postman.
+2. Ensure your local environment is running via Docker Compose.
+3. Open the **Phase 0: Security** folder:
+   - Run `00a - No Token` to verify the system is secure (Expect 401).
+   - Run `00b - Generate JWT Token`. This script will generate a valid JWT locally using the dev secret and save it to the collection variables.
+4. Once `00b` is run, all subsequent requests in Phase 1, Phase 2, and Phase 3 will automatically use the generated token!
+5. Run the requests in order to ingest data, view dashboards, and generate reports.
 
 ## 5. View Grafana Dashboards
 Navigate to Grafana in your web browser to see live metrics:

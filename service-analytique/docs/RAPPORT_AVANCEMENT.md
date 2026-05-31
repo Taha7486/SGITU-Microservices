@@ -209,7 +209,7 @@ La collection Postman (`docs/G8_Analytics_Postman_Collection.json`) reste **vali
 
 Elle n'est cependant **pas nécessaire pour valider le pipeline** : le harness PowerShell (`run-integration-tests.ps1`) et le script de seed (`seed-dashboard-data.ps1`) suffisent pour un cycle complet. La collection Postman peut être conservée comme complément.
 
-> **Note :** Les requêtes d'ingestion dans la collection Postman n'incluent **pas** de header `Authorization`. Depuis l'intégration du filtre JWT, il faut ajouter `Authorization: Bearer <token>` à chaque requête d'ingestion dans Postman (le token peut être généré via le script PowerShell ou le Swagger UI).
+> **Note :** La collection inclut désormais un dossier **Phase 0: Security**. L'exécution de la requête `00b - Generate JWT Token` génère automatiquement un jeton JWT en local (via `CryptoJS`) et l'injecte dans toutes les requêtes suivantes via l'authentification `Bearer` au niveau de la collection. Il n'est plus nécessaire d'ajouter les headers manuellement.
 
 ### 5.4 Tests manuels
 

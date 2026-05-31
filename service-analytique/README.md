@@ -1,5 +1,8 @@
 # SGITU Analytics Service (service-analytique)
 
+> **Status: 🟢 Integration Complete**  
+> The `integration/merged-analytique` branch has been fully merged into `main`. All endpoints are secured with JWT authentication, Kafka topics are fully integrated with the pipeline, and all automated end-to-end integration tests are passing.
+
 This is the main analytics engine for the SGITU microservices architecture. It is responsible for aggregating data from various sources (ticketing, incidents, vehicles, revenue, subscriptions), detecting threshold breaches, and calling external Machine Learning services to generate predictions.
 
 ## Features Implemented

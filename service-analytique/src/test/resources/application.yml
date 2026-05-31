@@ -3,14 +3,19 @@ spring:
     mongodb:
       uri: mongodb://localhost:27017/g8_analytics_test
       database: g8_analytics_test
+  mongodb:
+    embedded:
+      version: 7.0.0
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
       group-id: g8-analytics-group-test
       auto-offset-reset: earliest
       enable-auto-commit: false
-  autoconfigure:
-    exclude: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+      max-poll-records: 100
+      fetch-max-wait-ms: 500
+      session-timeout-ms: 30000
+      heartbeat-interval-ms: 10000
 
 kafka:
   topics:
@@ -20,6 +25,14 @@ kafka:
     vehicle: g6-vehicle-events-test
     incident: g7-incident-events-test
     user: g1-user-events-test
+    dead-letter: g8-analytics-dlt-test
+    analytics-results: g8-analytics-results-test
+    ml-predictions: g8-ml-predictions-test
+  retry:
+    interval: 100
+    max-attempts: 2
+
+# CI-specific settings for slower environments
 
 g5:
   notification:
@@ -52,3 +65,4 @@ de:
     mongodb:
       embedded:
         version: 7.0.0
+

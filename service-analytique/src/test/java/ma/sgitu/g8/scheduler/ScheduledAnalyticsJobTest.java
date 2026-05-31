@@ -187,7 +187,7 @@ class ScheduledAnalyticsJobTest {
 
     @Test
     @DisplayName("D – Call runAnalytics() twice, expect exactly one snapshot per statId")
-    void runAnalyticsTwice_validatesUpsert() {
+    void runAnalyticsTwice_validatesUpsert() throws InterruptedException {
         LocalDateTime now = LocalDateTime.now().minusMinutes(5);
         eventRepository.save(IncomingEvent.builder()
                 .sourceType(SourceType.TICKETING)
@@ -200,8 +200,13 @@ class ScheduledAnalyticsJobTest {
                 .processed(false)
                 .build());
 
+        // First run
         scheduledAnalyticsJob.runAnalytics();
+        Thread.sleep(500); // Allow time for async operations
+
+        // Second run - should update existing snapshots (upsert)
         scheduledAnalyticsJob.runAnalytics();
+        Thread.sleep(500); // Allow time for async operations
 
         List<StatSnapshot> snapshots = statSnapshotRepository.findAll();
         assertThat(snapshots).isNotEmpty();
@@ -212,7 +217,7 @@ class ScheduledAnalyticsJobTest {
         }
 
         groupedByStatId.forEach((statId, docs) -> {
-            assertThat(docs).as("statId %s should have exactly 1 document", statId).hasSize(1);
+            assertThat(docs).as("statId %s should have exactly 1 document (upsert)", statId).hasSize(1);
         });
     }
 
