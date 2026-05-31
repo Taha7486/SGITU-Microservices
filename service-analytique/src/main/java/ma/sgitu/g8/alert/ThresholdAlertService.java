@@ -1,5 +1,6 @@
 package ma.sgitu.g8.alert;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import ma.sgitu.g8.model.StatSnapshot;
 import ma.sgitu.g8.repository.SnapshotRepository;
@@ -21,6 +22,9 @@ public class ThresholdAlertService {
 
     @Autowired
     private AlertSender alertSender;
+
+    @Autowired
+    private MeterRegistry meterRegistry;
 
     public void detect() {
         checkPunctuality();
@@ -164,6 +168,11 @@ public class ThresholdAlertService {
     }
 
     private void sendAlert(Map<String, Object> payload) {
+        Object eventType = payload.get("eventType");
+        if (eventType != null) {
+            meterRegistry.counter("sgitu_alerts_triggered_total", "alert_type", String.valueOf(eventType))
+                    .increment();
+        }
         alertSender.send(payload);
     }
 

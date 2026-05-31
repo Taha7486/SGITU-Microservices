@@ -14,6 +14,11 @@ spring:
       group-id: g8-analytics-group
       auto-offset-reset: earliest
       enable-auto-commit: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    listener:
+      missing-topics-fatal: false
 
 kafka:
   topics:
@@ -26,18 +31,12 @@ kafka:
     dead-letter: ${KAFKA_TOPIC_DLT:g8-analytics-dlt}
     analytics-results: ${KAFKA_TOPIC_ANALYTICS:g8-analytics-results}
     ml-predictions: ${KAFKA_TOPIC_ML_PREDICTIONS:g8-ml-predictions}
+  topic:
+    crossgroup: sgitu.crossgroup.events
   retry:
     interval: 1000
     max-attempts: 3
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  metrics:
-    tags:
-      application: ${spring.application.name}
 
 logging:
   level:
@@ -51,6 +50,11 @@ ml:
   service:
     url: ${ML_SERVICE_URL:http://localhost:5000}
 
+# JWT
+jwt:
+  secret: sgitu_g8_secret_key_2025_very_long_secret_for_analytics
+  expiration: 86400000
+
 resilience4j:
   circuitbreaker:
     instances:
@@ -61,3 +65,37 @@ resilience4j:
         wait-duration-in-open-state: 30s
         permitted-number-of-calls-in-half-open-state: 3
         register-health-indicator: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+
+# SpringDoc OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  info:
+    title: Data Analysis API
+    description: API for launching, monitoring and managing data analyses
+    version: 1.0.0
+    contact:
+      name: SGITU Team
+      email: support@sgitu.ma
+  servers:
+    - url: http://localhost:8088
+      description: Development server
+    - url: https://api.sgitu.ma
+      description: Production server

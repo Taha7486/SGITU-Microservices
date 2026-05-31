@@ -65,14 +65,20 @@ public class KafkaConsumerConfig {
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
         factory.setConcurrency(3);
+
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         factory.getContainerProperties().setMicrometerEnabled(true);
 
         BackOff backOff = new FixedBackOff(retryInterval, maxRetryAttempts);
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler(deadLetterPublisher::publishFailedRecord, backOff);
-        errorHandler.addNotRetryableExceptions(IllegalArgumentException.class);
-        factory.setCommonErrorHandler(errorHandler);
+        if (deadLetterPublisher != null) {
+            DefaultErrorHandler errorHandler = new DefaultErrorHandler(deadLetterPublisher::publishFailedRecord, backOff);
+            errorHandler.addNotRetryableExceptions(IllegalArgumentException.class);
+            factory.setCommonErrorHandler(errorHandler);
+        } else {
+            factory.setCommonErrorHandler(new DefaultErrorHandler(backOff));
+        }
 
         return factory;
     }
 }
+

@@ -12,6 +12,10 @@ spring:
       group-id: g8-analytics-group-test
       auto-offset-reset: earliest
       enable-auto-commit: false
+      max-poll-records: 100
+      fetch-max-wait-ms: 500
+      session-timeout-ms: 30000
+      heartbeat-interval-ms: 10000
 
 kafka:
   topics:
@@ -29,13 +33,6 @@ kafka:
     max-attempts: 2
 
 # CI-specific settings for slower environments
-spring:
-  kafka:
-    consumer:
-      max-poll-records: 100
-      fetch-max-wait-ms: 500
-      session-timeout-ms: 30000
-      heartbeat-interval-ms: 10000
 
 g5:
   notification:
@@ -44,6 +41,10 @@ g5:
 ml:
   service:
     url: http://localhost:5000
+
+g8:
+  scheduler:
+    auto-run: false
 
 resilience4j:
   circuitbreaker:
@@ -58,3 +59,10 @@ resilience4j:
 logging:
   level:
     ma.sgitu.g8: WARN
+
+de:
+  flapdoodle:
+    mongodb:
+      embedded:
+        version: 7.0.0
+
