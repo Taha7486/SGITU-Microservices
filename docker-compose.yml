@@ -19,8 +19,7 @@
 #  DÉMARRAGE :
 #    cp .env.example .env     # première fois — remplir g4_DB_*, JWT_SECRET, etc.
 #    docker compose up -d
-#  Monitoring : prometheus.yml (racine) — http://localhost:9090/targets | Grafana :3000
-#  Dashboard G4 local : service-coordination-transport/ + docker compose --profile monitoring
+#  Monitoring : prometheus.yml (racine) — http://localhost:9090/targets | Grafana :3000 
 # ================================================================
 
 services:
