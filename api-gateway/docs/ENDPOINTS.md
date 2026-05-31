@@ -237,16 +237,8 @@ La Gateway valide le JWT, injecte `X-User-Id`, `X-Roles`, `X-Correlation-Id` pui
 - `POST/GET /api/g4/arrets`, `GET/PUT/DELETE /api/g4/arrets/{arretId}`
 - `GET /api/g4/arrets/ligne/{ligneId}`
 
-**Référentiel véhicules G7 (nouveau — mai 2026) :**
-- `GET  /api/g4/vehicules` — Liste référentiel local (alimenté par Kafka `vehicle.registered`)
-- `GET  /api/g4/vehicules/disponibles` — Véhicules `DISPONIBLE` pour affectation
-- `GET  /api/g4/vehicules/{vehiculeId}` — Détail (UUID G7)
-- `POST /api/g4/vehicules/sync-from-g7/{vehiculeId}` — Sync REST si Kafka down
-
-> Routage G10 : inchangé (`/api/g4/**` → `coordination-service:8084`).
-
 **Affectations véhicule/ligne :**
-- `POST/GET /api/g4/affectations` — Après véhicule connu ; `POST` notifie G7 `EN_SERVICE` si `ACTIF`
+- `POST/GET /api/g4/affectations`
 - `GET/PUT/DELETE /api/g4/affectations/{affectationId}`
 - `GET /api/g4/affectations/vehicule/{vehiculeId}`
 

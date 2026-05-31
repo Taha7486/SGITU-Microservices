@@ -2,11 +2,9 @@ package com.g7suivivehicules.kafka;
 
 import com.g7suivivehicules.dto.G4AnomalieTerrainDTO;
 import com.g7suivivehicules.dto.G4PositionEventDTO;
-import com.g7suivivehicules.dto.G7VehicleRegisteredEventDTO;
 import com.g7suivivehicules.dto.G8VehiculeStatusDTO;
 import com.g7suivivehicules.dto.G9IncidentEventDTO;
 import com.g7suivivehicules.entity.Alert;
-import com.g7suivivehicules.entity.Vehicule;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +13,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 
 @Slf4j
@@ -37,9 +34,6 @@ public class KafkaProducerService {
     @Value("${kafka.topic.g8}")
     private String topicG8;
 
-    @Value("${kafka.topic.vehicle.registered}")
-    private String topicVehicleRegistered;
-
     public void publierAlerte(Alert alert) {
         // Envoi à G4 (Anomalies Terrain)
         publierVersG4(alert);
@@ -48,24 +42,6 @@ public class KafkaProducerService {
         if (alert.getSeverite() == Alert.Severite.HAUTE || alert.getSeverite() == Alert.Severite.CRITIQUE) {
             publierVersG9(alert);
         }
-    }
-
-    @CircuitBreaker(name = "kafkaProducer", fallbackMethod = "publierVehicleRegisteredFallback")
-    @Retry(name = "kafkaProducer")
-    public void publierVehicleRegistered(Vehicule vehicule) {
-        G7VehicleRegisteredEventDTO dto = G7VehicleRegisteredEventDTO.builder()
-                .vehiculeId(vehicule.getId().toString())
-                .immatriculation(vehicule.getImmatriculation())
-                .type(vehicule.getType() != null ? vehicule.getType().name() : null)
-                .statut(vehicule.getStatut() != null ? vehicule.getStatut().name() : "DISPONIBLE")
-                .timestamp(DateTimeFormatter.ISO_INSTANT.format(Instant.now()))
-                .build();
-        kafkaTemplate.send(topicVehicleRegistered, vehicule.getId().toString(), dto);
-        log.info("[KafkaProducer] vehicle.registered publié : {}", dto);
-    }
-
-    private void publierVehicleRegisteredFallback(Vehicule vehicule, Exception e) {
-        log.warn("[KafkaProducer] vehicle.registered non envoyé pour {}", vehicule.getId());
     }
 
     @CircuitBreaker(name = "kafkaProducer", fallbackMethod = "envoyerPositionG4Fallback")

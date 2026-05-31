@@ -28,6 +28,28 @@ const loginEvent = {
 	},
 };
 
+const expectStatus = (...codes) => ({
+	listen: 'test',
+	script: {
+		type: 'text/javascript',
+		exec: [
+			`pm.test('HTTP ${codes.join('|')}', function () {`,
+			`  pm.expect(pm.response.code).to.be.oneOf([${codes.join(',')}]);`,
+			'});',
+		],
+	},
+});
+
+const notificationBody = () =>
+	'{\n' +
+	'  "notificationId": "G4-POSTMAN-001",\n' +
+	'  "sourceService": "G4",\n' +
+	'  "eventType": "RETARD",\n' +
+	'  "channel": "EMAIL",\n' +
+	'  "recipient": { "userId": "voyageur-demo", "email": "test@sgitu.local" },\n' +
+	'  "metadata": { "lineId": "L12", "reason": "Retard test Postman", "variables": { "missionId": "{{missionId}}" } }\n' +
+	'}';
+
 const jsonHdr = () => [{ key: 'Content-Type', value: 'application/json' }];
 
 const req = (name, method, url, opts = {}) => {
@@ -123,50 +145,64 @@ collection.item.push(
 
 const guide = [
 	{
-		...req('1. Login flotte (DISPATCHER)', 'POST', '{{baseUrl}}/api/auth/login', {
+		...req('1. Login réseau (G4_OPERATOR)', 'POST', '{{baseUrl}}/api/auth/login', {
 			noauth: true,
-			body: '{\n  "username": "gestionnaire.flotte",\n  "password": "password"\n}',
+			body: '{\n  "username": "gestionnaire.reseau",\n  "password": "password"\n}',
+			desc: 'Étapes 2→6 : lignes, arrêts, trajets, horaires',
 		}),
-		event: [loginEvent],
+		event: [loginEvent, expectStatus(200)],
 	},
 	{
 		...req('2. POST ligne', 'POST', '{{baseUrl}}/api/g4/lignes', {
 			body: '{\n  "code": "L12",\n  "nom": "Ligne test Postman",\n  "description": "Parcours guidé",\n  "active": true\n}',
 		}),
-		event: [saveId('ligneId')],
+		event: [saveId('ligneId'), expectStatus(201)],
 	},
 	{
 		...req('3. POST arrêt A', 'POST', '{{baseUrl}}/api/g4/arrets', {
 			body: '{\n  "code": "AR-A",\n  "nom": "Arrêt A",\n  "latitude": 35.57,\n  "longitude": -5.37,\n  "ligneId": {{ligneId}}\n}',
 		}),
-		event: [saveId('arretId')],
+		event: [saveId('arretId'), expectStatus(201)],
 	},
 	{
 		...req('4. POST arrêt B', 'POST', '{{baseUrl}}/api/g4/arrets', {
 			body: '{\n  "code": "AR-B",\n  "nom": "Arrêt B",\n  "latitude": 35.58,\n  "longitude": -5.36,\n  "ligneId": {{ligneId}}\n}',
 		}),
-		event: [saveId('arretId2')],
+		event: [saveId('arretId2'), expectStatus(201)],
 	},
 	{
 		...req('5. POST trajet', 'POST', '{{baseUrl}}/api/g4/trajets', {
 			body:
 				'{\n  "ligneId": {{ligneId}},\n  "code": "T12-A",\n  "nom": "Sens aller",\n  "sens": "ALLER",\n  "actif": true,\n  "arretSequence": [\n    { "arretId": {{arretId}}, "sequenceOrder": 1 },\n    { "arretId": {{arretId2}}, "sequenceOrder": 2 }\n  ]\n}',
 		}),
-		event: [saveId('trajetId')],
+		event: [saveId('trajetId'), expectStatus(201)],
 	},
 	{
 		...req('6. POST horaire', 'POST', '{{baseUrl}}/api/g4/horaires', {
 			body:
 				'{\n  "trajetId": {{trajetId}},\n  "arretId": {{arretId}},\n  "heurePassage": "07:15:00",\n  "jourSemaine": 1,\n  "validFrom": "2026-01-01",\n  "validTo": "2026-12-31",\n  "libelle": "Passage matin"\n}',
 		}),
-		event: [saveId('horaireId')],
+		event: [saveId('horaireId'), expectStatus(201)],
 	},
 	{
-		...req('6b. POST sync véhicule G7 → G4', 'POST', '{{baseUrl}}/api/g4/vehicules/sync-from-g7/{{vehiculeId}}', {
-			desc: 'Après création véhicule chez G7 : copier son UUID dans la variable vehiculeId. Ou attendre Kafka vehicle.registered.',
+		...req('6b. Login flotte (DISPATCHER)', 'POST', '{{baseUrl}}/api/auth/login', {
+			noauth: true,
+			body: '{\n  "username": "gestionnaire.flotte",\n  "password": "password"\n}',
+			desc: 'Étapes 7→11 : affectation, mission, events, G9, notification',
 		}),
+		event: [loginEvent, expectStatus(200)],
 	},
-	req('6c. GET véhicules disponibles G4', 'GET', '{{baseUrl}}/api/g4/vehicules/disponibles'),
+	{
+		...req('6c. POST sync véhicule G7 → G4 (optionnel)', 'POST', '{{baseUrl}}/api/g4/vehicules/sync-from-g7/{{vehiculeId}}', {
+			desc: 'Si G7 UP : sync REST. Sinon exécuter run-postman-ordered.ps1 (seed référentiel).',
+		}),
+		event: [expectStatus(200, 400, 502)],
+	},
+	(() => {
+		const r = req('6d. GET véhicules disponibles G4', 'GET', '{{baseUrl}}/api/g4/vehicules/disponibles');
+		r.event = [expectStatus(200)];
+		return r;
+	})(),
 	{
 		...req('7. POST affectation', 'POST', '{{baseUrl}}/api/g4/affectations', {
 			body:
@@ -369,11 +405,14 @@ collection.item.push(
 
 collection.item.push(
 	folder('10 — Notifications (G5)', 'Login flotte', [
-		req('POST envoyer notification', 'POST', '{{baseUrl}}/api/notifications/send', {
-			body:
-				'{\n  "canal": "MOBILE_PUSH",\n  "sujet": "Info voyageurs",\n  "corps": "Message test",\n  "metadata": { "missionId": "{{missionId}}" }\n}',
-			desc: '202 OK ou 202 DEGRADED si G5 arrêté',
-		}),
+		(() => {
+			const r = req('POST envoyer notification', 'POST', '{{baseUrl}}/api/notifications/send', {
+				body: notificationBody(),
+				desc: '202 ACCEPTED ou 202 DEGRADED si G5 arrêté',
+			});
+			r.event = [expectStatus(202)];
+			return r;
+		})(),
 	])
 );
 

@@ -214,7 +214,7 @@
 			"description": "Exécuter dans l'ordre, une requête à la fois. Ne pas sauter d'étapes.",
 			"item": [
 				{
-					"name": "1. Login flotte (DISPATCHER)",
+					"name": "1. Login réseau (G4_OPERATOR)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -229,8 +229,9 @@
 						},
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"username\": \"gestionnaire.flotte\",\n  \"password\": \"password\"\n}"
-						}
+							"raw": "{\n  \"username\": \"gestionnaire.reseau\",\n  \"password\": \"password\"\n}"
+						},
+						"description": "Étapes 2→6 : lignes, arrêts, trajets, horaires"
 					},
 					"event": [
 						{
@@ -241,6 +242,17 @@
 									"if (pm.response.code === 200) {",
 									"  pm.collectionVariables.set('accessToken', pm.response.json().token);",
 									"}"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('HTTP 200', function () {",
+									"  pm.expect(pm.response.code).to.be.oneOf([200]);",
+									"});"
 								]
 							}
 						}
@@ -274,6 +286,17 @@
 									"}"
 								]
 							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('HTTP 201', function () {",
+									"  pm.expect(pm.response.code).to.be.oneOf([201]);",
+									"});"
+								]
+							}
 						}
 					]
 				},
@@ -303,6 +326,17 @@
 									"  const j = pm.response.json();",
 									"  if (j && j.id != null) pm.collectionVariables.set('arretId', String(j.id));",
 									"}"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('HTTP 201', function () {",
+									"  pm.expect(pm.response.code).to.be.oneOf([201]);",
+									"});"
 								]
 							}
 						}
@@ -336,6 +370,17 @@
 									"}"
 								]
 							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('HTTP 201', function () {",
+									"  pm.expect(pm.response.code).to.be.oneOf([201]);",
+									"});"
+								]
+							}
 						}
 					]
 				},
@@ -365,6 +410,17 @@
 									"  const j = pm.response.json();",
 									"  if (j && j.id != null) pm.collectionVariables.set('trajetId', String(j.id));",
 									"}"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('HTTP 201', function () {",
+									"  pm.expect(pm.response.code).to.be.oneOf([201]);",
+									"});"
 								]
 							}
 						}
@@ -398,11 +454,67 @@
 									"}"
 								]
 							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('HTTP 201', function () {",
+									"  pm.expect(pm.response.code).to.be.oneOf([201]);",
+									"});"
+								]
+							}
 						}
 					]
 				},
 				{
-					"name": "6b. POST sync véhicule G7 → G4",
+					"name": "6b. Login flotte (DISPATCHER)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/api/auth/login",
+						"auth": {
+							"type": "noauth"
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"gestionnaire.flotte\",\n  \"password\": \"password\"\n}"
+						},
+						"description": "Étapes 7→11 : affectation, mission, events, G9, notification"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"  pm.collectionVariables.set('accessToken', pm.response.json().token);",
+									"}"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('HTTP 200', function () {",
+									"  pm.expect(pm.response.code).to.be.oneOf([200]);",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "6c. POST sync véhicule G7 → G4 (optionnel)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -412,11 +524,24 @@
 							}
 						],
 						"url": "{{baseUrl}}/api/g4/vehicules/sync-from-g7/{{vehiculeId}}",
-						"description": "Après création véhicule chez G7 : copier son UUID dans la variable vehiculeId. Ou attendre Kafka vehicle.registered."
-					}
+						"description": "Si G7 UP : sync REST. Sinon exécuter run-postman-ordered.ps1 (seed référentiel)."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('HTTP 200|400|502', function () {",
+									"  pm.expect(pm.response.code).to.be.oneOf([200,400,502]);",
+									"});"
+								]
+							}
+						}
+					]
 				},
 				{
-					"name": "6c. GET véhicules disponibles G4",
+					"name": "6d. GET véhicules disponibles G4",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -426,7 +551,20 @@
 							}
 						],
 						"url": "{{baseUrl}}/api/g4/vehicules/disponibles"
-					}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('HTTP 200', function () {",
+									"  pm.expect(pm.response.code).to.be.oneOf([200]);",
+									"});"
+								]
+							}
+						}
+					]
 				},
 				{
 					"name": "7. POST affectation",
@@ -1392,10 +1530,23 @@
 						"url": "{{baseUrl}}/api/notifications/send",
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"canal\": \"MOBILE_PUSH\",\n  \"sujet\": \"Info voyageurs\",\n  \"corps\": \"Message test\",\n  \"metadata\": { \"missionId\": \"{{missionId}}\" }\n}"
+							"raw": "{\n  \"notificationId\": \"G4-POSTMAN-001\",\n  \"sourceService\": \"G4\",\n  \"eventType\": \"RETARD\",\n  \"channel\": \"EMAIL\",\n  \"recipient\": { \"userId\": \"voyageur-demo\", \"email\": \"test@sgitu.local\" },\n  \"metadata\": { \"lineId\": \"L12\", \"reason\": \"Retard test Postman\", \"variables\": { \"missionId\": \"{{missionId}}\" } }\n}"
 						},
-						"description": "202 OK ou 202 DEGRADED si G5 arrêté"
-					}
+						"description": "202 ACCEPTED ou 202 DEGRADED si G5 arrêté"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('HTTP 202', function () {",
+									"  pm.expect(pm.response.code).to.be.oneOf([202]);",
+									"});"
+								]
+							}
+						}
+					]
 				}
 			]
 		},
