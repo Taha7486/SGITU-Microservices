@@ -1,4 +1,4 @@
-package com.serviceabonnement.service;
+package com.serviceabonnement.scheduler;
 
 import com.serviceabonnement.client.AnalyseClient;
 import com.serviceabonnement.dto.external.AnalyseEventDTO;

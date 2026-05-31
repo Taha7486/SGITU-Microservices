@@ -11,11 +11,16 @@
 #  PORTS UTILISÉS :
 #  G2  → 8082 (abonnement-service), 3307 (db-abonnement), 8080 (phpmyadmin)
 #  G3  → 8083 (user-service), 5433 (users-db)
+#  G4  → 8084 (g4-coordination), 5434 (g4-postgres)
+#  G5  → 8085 (à définir par le groupe G5 — notification-service)
 #  G7  → 8087 (g7-service), 5437 (db-g7)
+#  Transverse → 9090 (prometheus), 3000 (grafana), 9093/29093 (kafka)
 #
 #  DÉMARRAGE :
-#    cp .env.example .env     # première fois
+#    cp .env.example .env     # première fois — remplir g4_DB_*, JWT_SECRET, etc.
 #    docker compose up -d
+#  Monitoring : prometheus.yml (racine) — http://localhost:9090/targets | Grafana :3000
+#  Dashboard G4 local : service-coordination-transport/ + docker compose --profile monitoring
 # ================================================================
 
 services:
@@ -28,11 +33,11 @@ services:
   #  G2 — Service Abonnement (port 8082)
   # ---------------------------------------------------------------
   abonnement-service:
-    build: 
+    build:
       context: ./service-abonnement
       dockerfile: Dockerfile
       target: runner
-      
+
     container_name: service-abonnement
     ports:
       - "8082:8082"
@@ -49,6 +54,7 @@ services:
       - UTILISATEUR_SERVICE_URL=${G3_BASE_URL}
       - PAIEMENT_SERVICE_URL=${G6_BASE_URL}
       - ANALYSE_SERVICE_URL=${G8_BASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
     networks:
       - sgitu-network
       - abonnement-db-network
@@ -65,7 +71,7 @@ services:
     volumes:
       - abonnement_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
       timeout: 5s
       retries: 10
     networks:
@@ -77,7 +83,7 @@ services:
       - "8085:80"
     environment:
       - PMA_ARBITRARY=1
-      - PMA_HOST=db-abonnement
+      - PMA_HOST= 
       - PMA_PORT=3306
     depends_on:
       - db-abonnement
@@ -86,7 +92,10 @@ services:
   #  G3 — Service Utilisateur (port 8083)
   # ---------------------------------------------------------------
   user-service:
-    image: i5m4il/sgitu-user-service:1.0
+    build:
+      context: ./service-utilisateur
+      dockerfile: Dockerfile
+    image: g3-user-service:1.0
     container_name: g3-user-service
     ports:
       - "8083:8083"
@@ -120,7 +129,7 @@ services:
     volumes:
       - g3_users_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${users_DB_USER}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${users_DB_USER}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -136,8 +145,60 @@ services:
       - sgitu-network
 
   # ---------------------------------------------------------------
-  #  G4 — (ajoutez votre service ici)
+  #  G4 — Service Coordination Transport (port 8084)
   # ---------------------------------------------------------------
+  g4-coordination:
+    build:
+      context: ./service-coordination-transport
+      dockerfile: Dockerfile
+    container_name: g4-coordination-service
+    hostname: g4-coordination
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: "8084"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://g4-postgres:5432/${g4_DB_NAME:-sgitu_g4}
+      SPRING_DATASOURCE_USERNAME: ${g4_DB_USER:-g4}
+      SPRING_DATASOURCE_PASSWORD: ${g4_DB_PASSWORD:-g4}
+      JPA_DDL_AUTO: update
+      SGITU_KAFKA_ENABLED: "true"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SGITU_JWT_SECRET: ${JWT_SECRET:-SGlUVS1HNC1KV1QtU0VDUkVOLURFVl8xMjhCaXRzX19VU0VfRU5WX1ZBUiMjIw==}
+      SGITU_G3_URL: http://g3-user-service:8083
+      SGITU_G5_URL: http://notification-service:8085
+      SGITU_G10_URL: ${G10_BASE_URL:-http://g10-service:8090}
+      SGITU_G7_URL: http://g7-service:8087
+      SGITU_G1_URL: ${G1_BASE_URL:-http://g1-billetterie:8081}
+      SGITU_G9_URL: ${G9_BASE_URL:-http://g9-incidents:8089}
+      SGITU_G3_VALIDATION_ENABLED: ${SGITU_G3_VALIDATION_ENABLED:-true}
+    depends_on:
+      g4-postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - sgitu-network
+      - g4-db-network
+
+  g4-postgres:
+    image: postgres:16-alpine
+    container_name: g4-postgres
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: ${g4_DB_NAME:-sgitu_g4}
+      POSTGRES_USER: ${g4_DB_USER:-g4}
+      POSTGRES_PASSWORD: ${g4_DB_PASSWORD:-g4}
+    volumes:
+      - g4_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${g4_DB_USER:-g4} -d ${g4_DB_NAME:-sgitu_g4}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - g4-db-network
 
   # ---------------------------------------------------------------
   #  G5 — (ajoutez votre service ici)
@@ -162,6 +223,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db-g7:5432/${suivi_vehicule_DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${suivi_vehicule_DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${suivi_vehicule_DB_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SERVER_PORT: 8087
       G4_BASE_URL: ${G4_BASE_URL:-}
       G5_BASE_URL: ${G5_BASE_URL:-}
@@ -187,7 +249,7 @@ services:
     volumes:
       - g7_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${suivi_vehicule_DB_USER} -d ${suivi_vehicule_DB_NAME}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${suivi_vehicule_DB_USER} -d ${suivi_vehicule_DB_NAME}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -207,7 +269,8 @@ services:
   # ---------------------------------------------------------------
 
   # ---------------------------------------------------------------
-  # Services transversaux (Observabilité)
+  # Observabilité transverse (alignement repo promo — prometheus.yml racine)
+  # Dashboard Grafana G4 : voir service-coordination-transport/monitoring/ (profil local)
   # ---------------------------------------------------------------
   prometheus:
     image: prom/prometheus:latest
@@ -219,7 +282,8 @@ services:
     networks:
       - sgitu-network
     depends_on:
-      - abonnement-service
+      - g7-service
+      - user-service
 
   grafana:
     image: grafana/grafana:latest
@@ -240,7 +304,7 @@ services:
   # ---------------------------------------------------------------
   kafka:
     image: confluentinc/cp-kafka:7.8.7
-    container_name: sgitu-kafka          # ← préfixé pour éviter conflit
+    container_name: sgitu-kafka # ← préfixé pour éviter conflit
     hostname: kafka
     networks:
       - sgitu-network
@@ -268,7 +332,7 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092" ]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -284,10 +348,13 @@ networks:
     driver: bridge
   g7-db-network:
     driver: bridge
+  g4-db-network:
+    driver: bridge
 
 volumes:
   g3_users_data:
   abonnement_data:
   g7_db_data:
+  g4_pg_data:
   kafka_data:
   grafana-data:
