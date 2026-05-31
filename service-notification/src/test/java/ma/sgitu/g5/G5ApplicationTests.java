@@ -62,30 +62,35 @@ class G5ApplicationTests {
         notificationRepository.save(n2);
 
         // Test filter by userId
-        Specification<Notification> spec1 = NotificationSpecification.withFilters("user-123", null, null);
+        Specification<Notification> spec1 = NotificationSpecification.withFilters(
+                "user-123", null, null, null, null, null);
         List<Notification> list1 = notificationRepository.findAll(spec1);
         assertEquals(1, list1.size());
         assertEquals("notif-1", list1.get(0).getNotificationId());
 
         // Test filter by status
-        Specification<Notification> spec2 = NotificationSpecification.withFilters(null, NotificationStatus.FAILED, null);
+        Specification<Notification> spec2 = NotificationSpecification.withFilters(
+                null, NotificationStatus.FAILED, null, null, null, null);
         List<Notification> list2 = notificationRepository.findAll(spec2);
         assertEquals(1, list2.size());
         assertEquals("notif-2", list2.get(0).getNotificationId());
 
         // Test filter by sourceService
-        Specification<Notification> spec3 = NotificationSpecification.withFilters(null, null, "PAYMENT");
+        Specification<Notification> spec3 = NotificationSpecification.withFilters(
+                null, null, "PAYMENT", null, null, null);
         List<Notification> list3 = notificationRepository.findAll(spec3);
         assertEquals(1, list3.size());
         assertEquals("notif-2", list3.get(0).getNotificationId());
 
         // Test combined filter
-        Specification<Notification> spec4 = NotificationSpecification.withFilters("user-123", NotificationStatus.SENT, "AUTH");
+        Specification<Notification> spec4 = NotificationSpecification.withFilters(
+                "user-123", NotificationStatus.SENT, "AUTH", null, null, null);
         List<Notification> list4 = notificationRepository.findAll(spec4);
         assertEquals(1, list4.size());
 
         // Test no match
-        Specification<Notification> spec5 = NotificationSpecification.withFilters("user-123", NotificationStatus.FAILED, null);
+        Specification<Notification> spec5 = NotificationSpecification.withFilters(
+                "user-123", NotificationStatus.FAILED, null, null, null, null);
         List<Notification> list5 = notificationRepository.findAll(spec5);
         assertEquals(0, list5.size());
     }
