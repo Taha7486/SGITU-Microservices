@@ -443,3 +443,71 @@ Toutes les réponses d'ingestion retournent un objet `BatchIngestionResponse` :
 | `207 Multi-Status` | `"PARTIAL"` | Certains événements rejetés |
 | `400 Bad Request` | `"REJECTED"` | Tous les événements rejetés |
 | `503 Service Unavailable` | — | Erreur MongoDB |
+
+---
+
+## Endpoints pour le Groupe Gateway (G10)
+
+Le service G8 Analytics expose les endpoints suivants pour l'ingestion des événements. Le Gateway doit router les requêtes vers **`http://g8-analytics-service:8088`** (port interne Docker) ou **`localhost:8088`** (si en développement local).
+
+### Endpoints d'ingestion REST
+
+| Service | Endpoint | Méthode | Port | Description |
+|---------|----------|--------|------|-------------|
+| **G1** (Utilisateurs) | `POST /api/v1/ingestion/users` | `POST` | `8088` | Ingérer événements utilisateurs (activité) |
+| **G2** (Billetterie) | `POST /api/v1/ingestion/tickets` | `POST` | `8088` | Ingérer validations de billets |
+| **G3** (Abonnements) | `POST /api/v1/ingestion/subscriptions` | `POST` | `8088` | Ingérer événements d'abonnement |
+| **G4** (Paiements) | `POST /api/v1/ingestion/payments` | `POST` | `8088` | Ingérer transactions de paiement |
+| **G6** (Véhicules) | `POST /api/v1/ingestion/vehicles` | `POST` | `8088` | Ingérer événements de flotte |
+| **G7** (Incidents) | `POST /api/v1/ingestion/incidents` | `POST` | `8088` | Ingérer incidents routiers |
+
+### Health Check & Monitoring
+
+| Endpoint | Méthode | Description | Réponse | Code |
+|----------|---------|-------------|---------|------|
+| `/health` | `GET` | État du service | `{"status":"UP"}` | `200` |
+| `/swagger-ui.html` | `GET` | Documentation API interactif | Page HTML | `200` |
+
+### Exemples de routing (côté Gateway)
+
+```yaml
+# Gateway routing rules for G8
+routes:
+  - path: /api/v1/ingestion/users
+    service: g8-analytics-service
+    port: 8088
+    method: POST
+    
+  - path: /api/v1/ingestion/tickets
+    service: g8-analytics-service
+    port: 8088
+    method: POST
+    
+  - path: /api/v1/ingestion/subscriptions
+    service: g8-analytics-service
+    port: 8088
+    method: POST
+    
+  - path: /api/v1/ingestion/payments
+    service: g8-analytics-service
+    port: 8088
+    method: POST
+    
+  - path: /api/v1/ingestion/vehicles
+    service: g8-analytics-service
+    port: 8088
+    method: POST
+    
+  - path: /api/v1/ingestion/incidents
+    service: g8-analytics-service
+    port: 8088
+    method: POST
+```
+
+### Notes pour Gateway
+
+- **Authentification :** Les endpoints acceptent actuellement les requêtes sans JWT. À aligner avec la stratégie d'authentification globale du projet.
+- **Rate limiting :** Pas de rate limit côté G8; configurer au niveau Gateway si nécessaire.
+- **Batch size :** Maximum **1 000 événements** par requête. Le Gateway doit fragmenter les payloads > 1 000.
+- **Timeouts :** G8 peut traiter ~100–500 événements/s selon la charge MongoDB. Prévoir timeout ≥ 10s.
+- **CORS :** Non configuré; activer si clients front-end appellent directement G8.

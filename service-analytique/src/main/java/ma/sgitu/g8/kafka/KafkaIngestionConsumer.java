@@ -9,6 +9,7 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -69,8 +70,12 @@ public class KafkaIngestionConsumer {
             groupId = "${spring.kafka.consumer.group-id:g8-analytics-group}",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void consumeUserEvents(@Payload List<Map<String, Object>> events, Acknowledgment ack) {
-        consume(events, SourceType.USER, ack);
+    public void consumeUserEvents(@Payload Map<String, Object> event, Acknowledgment ack) {
+        // G3 doesn't send schemaVersion; add it for validation compatibility
+        if (!event.containsKey("schemaVersion")) {
+            event.put("schemaVersion", 1);
+        }
+        consume(Collections.singletonList(event), SourceType.USER, ack);
     }
 
     private void consume(List<Map<String, Object>> events, SourceType sourceType, Acknowledgment ack) {

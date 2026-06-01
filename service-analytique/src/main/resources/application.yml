@@ -22,12 +22,12 @@ spring:
 
 kafka:
   topics:
-    ticketing: ${KAFKA_TOPIC_TICKETING:g2-ticketing-events}
-    subscription: ${KAFKA_TOPIC_SUBSCRIPTION:g3-subscription-events}
-    payment: ${KAFKA_TOPIC_PAYMENT:g4-payment-events}
-    vehicle: ${KAFKA_TOPIC_VEHICLE:g6-vehicle-events}
-    incident: ${KAFKA_TOPIC_INCIDENT:g7-incident-events}
-    user: ${KAFKA_TOPIC_USER:g1-user-events}
+    ticketing: ${KAFKA_TOPIC_TICKETING:ticket.validated}
+    subscription: ${KAFKA_TOPIC_SUBSCRIPTION:abonnement.souscription}
+    payment: ${KAFKA_TOPIC_PAYMENT:payment.transaction.completed}
+    vehicle: ${KAFKA_TOPIC_VEHICLE:g8.vehicule.status}
+    incident: ${KAFKA_TOPIC_INCIDENT:incident.analytique.topic}
+    user: ${KAFKA_TOPIC_USER:g8-user-events}
     dead-letter: ${KAFKA_TOPIC_DLT:g8-analytics-dlt}
     analytics-results: ${KAFKA_TOPIC_ANALYTICS:g8-analytics-results}
     ml-predictions: ${KAFKA_TOPIC_ML_PREDICTIONS:g8-ml-predictions}

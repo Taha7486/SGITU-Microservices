@@ -103,7 +103,7 @@ class KafkaIngestionConsumerTest {
     @DisplayName("A6 – consumeUserEvents → ingest called with USER")
     void user_delegatesWithCorrectSourceType() {
         when(ingestionService.ingest(any(), eq(SourceType.USER))).thenReturn(successResponse);
-        consumer.consumeUserEvents(singleEvent(), ack);
+        consumer.consumeUserEvents(singleEvent().get(0), ack);
         verify(ingestionService).ingest(any(), eq(SourceType.USER));
         verify(ack).acknowledge();
     }
