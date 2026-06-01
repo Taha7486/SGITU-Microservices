@@ -12,9 +12,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
+import org.springframework.util.concurrent.ListenableFuture;
 
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Service
@@ -47,14 +52,34 @@ public class KafkaProducerService {
     @CircuitBreaker(name = "kafkaProducer", fallbackMethod = "publierVehiculeEnregistreFallback")
     @Retry(name = "kafkaProducer")
     public void publierVehiculeEnregistre(VehiculeRegisteredEvent event) {
-        kafkaTemplate.send(topicVehicleRegistered, event.getVehiculeId().toString(), event);
-        log.info("[KafkaProducer] Véhicule enregistré publié sur '{}' — vehiculeId={} immat={}",
+        log.info("[KafkaProducer] Envoi vehicle.registered vers '{}' — vehiculeId={} immat={}",
                 topicVehicleRegistered, event.getVehiculeId(), event.getImmatriculation());
+
+        ListenableFuture<SendResult<String, Object>> future = kafkaTemplate.send(
+                topicVehicleRegistered,
+                event.getVehiculeId().toString(),
+                event
+        );
+
+        try {
+            SendResult<String, Object> result = future.get(5, TimeUnit.SECONDS);
+            log.info("[KafkaProducer] Envoi réussi sur topic={} partition={} offset={} — vehiculeId={} immat={}",
+                    result.getRecordMetadata().topic(),
+                    result.getRecordMetadata().partition(),
+                    result.getRecordMetadata().offset(),
+                    event.getVehiculeId(),
+                    event.getImmatriculation());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Publication Kafka interrompue pour vehicle.registered", e);
+        } catch (ExecutionException | TimeoutException e) {
+            throw new RuntimeException("Échec publication Kafka vehicle.registered", e);
+        }
     }
 
     private void publierVehiculeEnregistreFallback(VehiculeRegisteredEvent event, Exception e) {
         log.warn("[KafkaProducer] Circuit breaker activé — vehicle.registered non envoyé pour vehiculeId={} : {}",
-                event.getVehiculeId(), e.getMessage());
+                event.getVehiculeId(), e.getMessage(), e);
     }
 
     public void publierAlerte(Alert alert) {
