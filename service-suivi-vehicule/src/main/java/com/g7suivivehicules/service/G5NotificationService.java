@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -38,6 +39,11 @@ public class G5NotificationService {
             String priority = determinerPriorite(alert.getTypeAlert());
             String message = genererMessageConducteur(alert);
 
+            // Récupération de l'email depuis le contexte de sécurité (JWT via Gateway)
+            String currentUserEmail = SecurityContextHolder.getContext().getAuthentication() != null 
+                    ? SecurityContextHolder.getContext().getAuthentication().getName() 
+                    : "conducteur@sgitu.ma";
+
             Map<String, String> metadata = new HashMap<>();
             metadata.put("vehiculeId", alert.getVehiculeId().toString());
             metadata.put("typeAnomalie", alert.getTypeAlert().name());
@@ -47,20 +53,19 @@ public class G5NotificationService {
             metadata.put("timestamp", alert.getTimestampDebut().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
 
             G5NotificationRequest request = G5NotificationRequest.builder()
-                    .notificationId(UUID.randomUUID().toString())
+                    .notificationId("uuid-g7-" + UUID.randomUUID().toString().substring(0, 8))
                     .eventType("VEHICULE_ALERTE_CONDUCTEUR")
                     .priority(priority)
                     .recipient(G5NotificationRequest.Recipient.builder()
                             .userId("conducteur-" + alert.getVehiculeId())
-                            .deviceToken("token-device-conducteur-" + alert.getVehiculeId()) // Mock token
+                            .email(currentUserEmail)
+                            .deviceToken("token-device-conducteur-" + alert.getVehiculeId())
                             .build())
                     .metadata(metadata)
                     .build();
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            // On pourrait ajouter le JWT ici si on l'avait dans le contexte
-            // headers.setBearerAuth(jwt);
 
             HttpEntity<G5NotificationRequest> entity = new HttpEntity<>(request, headers);
 
@@ -79,7 +84,6 @@ public class G5NotificationService {
 
     private CompletableFuture<Void> notifierConducteurFallback(Alert alert, Exception e) {
         log.warn("[G5Notification] Circuit breaker activé - Notification fallback pour véhicule {}", alert.getVehiculeId());
-        // Optionnel: loguer l'alerte localement ou utiliser une autre méthode de notification
         return CompletableFuture.completedFuture(null);
     }
 
@@ -126,12 +130,13 @@ public class G5NotificationService {
             metadata.put("source", "G7");
 
             G5NotificationRequest request = G5NotificationRequest.builder()
-                    .notificationId(UUID.randomUUID().toString())
+                    .notificationId("uuid-g7-" + UUID.randomUUID().toString().substring(0, 8))
                     .eventType("LOG_ALERT_ADMIN")
                     .channel("EMAIL")
                     .priority(determinePriorityFromLogLevel(logLevel))
                     .recipient(G5NotificationRequest.Recipient.builder()
                             .userId("admin")
+                            .email("admin@sgitu.ma")
                             .deviceToken(null)
                             .build())
                     .metadata(metadata)
@@ -152,6 +157,52 @@ public class G5NotificationService {
             log.error("[G5Notification] Échec de l'envoi de log vers G5 : {}", e.getMessage());
             return CompletableFuture.failedFuture(e);
         }
+    }
+
+    @CircuitBreaker(name = "g5NotificationService", fallbackMethod = "notifierVehiculeEnregistreFallback")
+    @Retry(name = "g5NotificationService")
+    @TimeLimiter(name = "g5NotificationService")
+    public CompletableFuture<Void> notifierVehiculeEnregistre(com.g7suivivehicules.dto.VehiculeResponse vehicule) {
+        try {
+            Map<String, String> metadata = new HashMap<>();
+            metadata.put("vehiculeId", vehicule.getId().toString());
+            metadata.put("immatriculation", vehicule.getImmatriculation());
+            metadata.put("type", vehicule.getType().name());
+            metadata.put("message", "Votre véhicule a été enregistré avec succès dans le système SGITU.");
+            metadata.put("timestamp", java.time.LocalDateTime.now().toString());
+
+            G5NotificationRequest request = G5NotificationRequest.builder()
+                    .notificationId("uuid-g7-" + UUID.randomUUID().toString().substring(0, 8))
+                    .eventType("VEHICULE_ENREGISTRE")
+                    .priority("NORMAL")
+                    .recipient(G5NotificationRequest.Recipient.builder()
+                            .userId("conducteur-" + vehicule.getConducteurId())
+                            .email("conducteur@sgitu.ma") // Idéalement récupéré depuis un service User
+                            .deviceToken(null)
+                            .build())
+                    .metadata(metadata)
+                    .build();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<G5NotificationRequest> entity = new HttpEntity<>(request, headers);
+
+            restTemplate.postForEntity(g5Url, entity, String.class);
+
+            log.info("[G5Notification] Notification d'enregistrement envoyée pour : {}", vehicule.getImmatriculation());
+
+            return CompletableFuture.completedFuture(null);
+
+        } catch (Exception e) {
+            log.error("[G5Notification] Échec de l'envoi de notification d'enregistrement : {}", e.getMessage());
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    private CompletableFuture<Void> notifierVehiculeEnregistreFallback(com.g7suivivehicules.dto.VehiculeResponse vehicule, Exception e) {
+        log.warn("[G5Notification] Circuit breaker activé - Fallback enregistrement pour : {}", vehicule.getImmatriculation());
+        return CompletableFuture.completedFuture(null);
     }
 
     private CompletableFuture<Void> notifierLogAdminFallback(String logLevel, String message, Exception e) {
