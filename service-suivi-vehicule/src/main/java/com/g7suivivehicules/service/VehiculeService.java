@@ -21,6 +21,8 @@ import java.util.stream.Collectors;
 public class VehiculeService {
 
     private final VehiculeRepository vehiculeRepository;
+    private final com.g7suivivehicules.kafka.KafkaProducerService kafkaProducerService;
+    private final G5NotificationService g5NotificationService;
 
     @Transactional
     public VehiculeResponse createVehicule(VehiculeRequest request) {
@@ -35,8 +37,12 @@ public class VehiculeService {
                 .build();
 
         Vehicule saved = vehiculeRepository.save(vehicule);
+        VehiculeResponse response = mapToResponse(saved);
 
-        return mapToResponse(saved);
+        // Notification G5 pour le conducteur/admin
+        g5NotificationService.notifierVehiculeEnregistre(response);
+
+        return response;
     }
 
     public List<VehiculeResponse> getAllVehicules() {

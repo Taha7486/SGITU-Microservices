@@ -220,12 +220,7 @@ services:
     networks:
       - sgitu-network
     depends_on:
-<<<<<<< HEAD
-      - abonnement-service
-=======
-      #- abonnement-service
       - g7-service
->>>>>>> 466dd31dea263507d6cb34218cc57d6ee2d3d8b6
 
   grafana:
     image: grafana/grafana:latest
