@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -38,6 +39,11 @@ public class G5NotificationService {
             String priority = determinerPriorite(alert.getTypeAlert());
             String message = genererMessageConducteur(alert);
 
+            // Récupération de l'email depuis le contexte de sécurité (JWT via Gateway)
+            String currentUserEmail = SecurityContextHolder.getContext().getAuthentication() != null 
+                    ? SecurityContextHolder.getContext().getAuthentication().getName() 
+                    : "conducteur@sgitu.ma";
+
             Map<String, String> metadata = new HashMap<>();
             metadata.put("vehiculeId", alert.getVehiculeId().toString());
             metadata.put("typeAnomalie", alert.getTypeAlert().name());
@@ -47,20 +53,19 @@ public class G5NotificationService {
             metadata.put("timestamp", alert.getTimestampDebut().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
 
             G5NotificationRequest request = G5NotificationRequest.builder()
-                    .notificationId(UUID.randomUUID().toString())
+                    .notificationId("uuid-g7-" + UUID.randomUUID().toString().substring(0, 8))
                     .eventType("VEHICULE_ALERTE_CONDUCTEUR")
                     .priority(priority)
                     .recipient(G5NotificationRequest.Recipient.builder()
                             .userId("conducteur-" + alert.getVehiculeId())
-                            .deviceToken("token-device-conducteur-" + alert.getVehiculeId()) // Mock token
+                            .email(currentUserEmail)
+                            .deviceToken("token-device-conducteur-" + alert.getVehiculeId())
                             .build())
                     .metadata(metadata)
                     .build();
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            // On pourrait ajouter le JWT ici si on l'avait dans le contexte
-            // headers.setBearerAuth(jwt);
 
             HttpEntity<G5NotificationRequest> entity = new HttpEntity<>(request, headers);
 
@@ -79,7 +84,6 @@ public class G5NotificationService {
 
     private CompletableFuture<Void> notifierConducteurFallback(Alert alert, Exception e) {
         log.warn("[G5Notification] Circuit breaker activé - Notification fallback pour véhicule {}", alert.getVehiculeId());
-        // Optionnel: loguer l'alerte localement ou utiliser une autre méthode de notification
         return CompletableFuture.completedFuture(null);
     }
 
@@ -126,12 +130,13 @@ public class G5NotificationService {
             metadata.put("source", "G7");
 
             G5NotificationRequest request = G5NotificationRequest.builder()
-                    .notificationId(UUID.randomUUID().toString())
+                    .notificationId("uuid-g7-" + UUID.randomUUID().toString().substring(0, 8))
                     .eventType("LOG_ALERT_ADMIN")
                     .channel("EMAIL")
                     .priority(determinePriorityFromLogLevel(logLevel))
                     .recipient(G5NotificationRequest.Recipient.builder()
                             .userId("admin")
+                            .email("admin@sgitu.ma")
                             .deviceToken(null)
                             .build())
                     .metadata(metadata)

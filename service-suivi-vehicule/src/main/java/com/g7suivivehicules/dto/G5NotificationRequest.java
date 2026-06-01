@@ -28,8 +28,9 @@ public class G5NotificationRequest {
     @Schema(description = "Type d'événement (RACINE)", example = "VEHICULE_ALERTE_CONDUCTEUR")
     private String eventType;
 
+    @Builder.Default
     @Schema(description = "Canal de diffusion", example = "PUSH")
-    private final String channel = "PUSH";
+    private String channel = "PUSH";
 
     @Schema(description = "Niveau de priorité", example = "HIGH", allowableValues = {"HIGH", "NORMAL", "LOW"})
     private String priority;
@@ -46,6 +47,9 @@ public class G5NotificationRequest {
     public static class Recipient {
         @Schema(description = "Identifiant de l'utilisateur (conducteur)", example = "conducteur-V-1042")
         private String userId;
+
+        @Schema(description = "Email de l'utilisateur", example = "admin@sgitu.ma")
+        private String email;
 
         @Schema(description = "Token du device pour le PUSH", example = "token-device-conducteur")
         private String deviceToken;

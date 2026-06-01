@@ -25,11 +25,10 @@ public class HeaderAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String userId = req.getHeader("X-User-Id");
+        String userEmail = req.getHeader("X-User-Email");
         String rolesHeader = req.getHeader("X-Roles");
 
         if (userId == null || rolesHeader == null) {
-            // Allow the request to continue, Spring Security will handle authorization
-            // based on the absence of authentication in the context.
             chain.doFilter(req, res);
             return;
         }
@@ -40,8 +39,11 @@ public class HeaderAuthFilter extends OncePerRequestFilter {
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
 
+        // On utilise l'email comme principal si disponible, sinon le userId
+        String principal = (userEmail != null) ? userEmail : userId;
+
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                userId, null, authorities);
+                principal, null, authorities);
 
         SecurityContextHolder.getContext().setAuthentication(auth);
         chain.doFilter(req, res);
