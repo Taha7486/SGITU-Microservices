@@ -16,6 +16,7 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 import org.springframework.util.concurrent.ListenableFuture;
 
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -55,7 +56,7 @@ public class KafkaProducerService {
         log.info("[KafkaProducer] Envoi vehicle.registered vers '{}' — vehiculeId={} immat={}",
                 topicVehicleRegistered, event.getVehiculeId(), event.getImmatriculation());
 
-        ListenableFuture<SendResult<String, Object>> future = kafkaTemplate.send(
+        java.util.concurrent.CompletableFuture<SendResult<String, Object>> future = kafkaTemplate.send(
                 topicVehicleRegistered,
                 event.getVehiculeId().toString(),
                 event
@@ -101,7 +102,7 @@ public class KafkaProducerService {
                 .lat(position.getLatitude())
                 .longitude(position.getLongitude())
                 .vitesse(position.getVitesse())
-                .timestamp(position.getTimestamp().format(DateTimeFormatter.ISO_DATE_TIME))
+                .timestamp(position.getTimestamp().atZone(ZoneOffset.UTC).toInstant().toString())
                 .build();
 
         kafkaTemplate.send(topicPositionG4, position.getVehiculeId().toString(), dtoG4);
@@ -157,7 +158,7 @@ public class KafkaProducerService {
                 .vehiculeId(alert.getVehiculeId().toString())
                 .type(typeG4)
                 .details(alert.getMessage())
-                .timestamp(alert.getTimestampDebut().format(DateTimeFormatter.ISO_DATE_TIME))
+                .timestamp(alert.getTimestampDebut().atZone(ZoneOffset.UTC).toInstant().toString())
                 .build();
 
         try {
