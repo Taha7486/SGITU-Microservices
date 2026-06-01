@@ -5,10 +5,8 @@ on:
   pull_request:
     paths:
       - 'service-abonnement/**'
-  # Ou quand on push sur n'importe quelle branche SAUF "main"
+  # S'exécute à chaque push sur n'importe quelle branche
   push:
-    branches-ignore:
-      - main
     paths:
       - 'service-abonnement/**'
 
