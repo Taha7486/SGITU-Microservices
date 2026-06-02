@@ -30,7 +30,7 @@ jobs:
         cache: 'maven'
 
     - name: Analyser la qualité du code (Warnings)
-      run: mvn clean compile -Xlint:all
+      run: mvn clean compile -Dmaven.compiler.showWarnings=true -Dmaven.compiler.compilerArgs=-Xlint:all
 
   build-and-test:
     runs-on: ubuntu-latest
