@@ -32,6 +32,9 @@ public class SecurityConfig {
                     res.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden"))
             )
             .authorizeHttpRequests(auth -> auth
+                // Actuator / Prometheus (health monitoring)
+                .requestMatchers("/actuator/**").permitAll()
+
                 // Swagger / OpenAPI & Error endpoint
                 .requestMatchers(
                     "/error",
