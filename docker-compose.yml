@@ -74,10 +74,9 @@ services:
   #  G2 — Service Abonnement (port 8082)
   # ---------------------------------------------------------------
   abonnement-service:
-    build:
-      context: ./service-abonnement
-      dockerfile: Dockerfile
-      target: runner
+    # On utilise l'image construite et publiée par le pipeline CD (GitHub Actions)
+    # Pour mettre à jour l'image : pousser sur main → GitHub Actions → Docker Hub
+    image: raihana10m/service-abonnement:latest
 
     container_name: service-abonnement
     ports:
