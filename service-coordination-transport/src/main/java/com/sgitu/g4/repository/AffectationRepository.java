@@ -11,4 +11,6 @@ public interface AffectationRepository extends JpaRepository<AffectationVehicule
 	List<AffectationVehiculeLigne> findByVehiculeIdOrderByDateDebutDesc(String vehiculeId);
 
 	boolean existsByVehiculeIdAndLigne_IdAndStatut(String vehiculeId, Long ligneId, StatutAffectation statut);
+
+	boolean existsByVehiculeIdAndStatut(String vehiculeId, StatutAffectation statut);
 }

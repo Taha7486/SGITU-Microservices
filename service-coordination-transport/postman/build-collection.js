@@ -43,11 +43,11 @@ const expectStatus = (...codes) => ({
 const notificationBody = () =>
 	'{\n' +
 	'  "notificationId": "G4-POSTMAN-001",\n' +
-	'  "sourceService": "G4",\n' +
-	'  "eventType": "RETARD",\n' +
+	'  "sourceService": "COORDINATION",\n' +
+	'  "eventType": "DELAY_ALERT",\n' +
 	'  "channel": "EMAIL",\n' +
-	'  "recipient": { "userId": "voyageur-demo", "email": "test@sgitu.local" },\n' +
-	'  "metadata": { "lineId": "L12", "reason": "Retard test Postman", "variables": { "missionId": "{{missionId}}" } }\n' +
+	'  "recipient": { "userId": "{{recipientUserId}}", "email": "{{recipientEmail}}" },\n' +
+	'  "metadata": { "lineId": "L12", "reason": "RETARD_SIGNIFICATIF", "variables": { "vehiculeId": "{{vehiculeId}}", "valeur": "12", "arret": "Gare Sud" } }\n' +
 	'}';
 
 const jsonHdr = () => [{ key: 'Content-Type', value: 'application/json' }];
@@ -94,6 +94,8 @@ const collection = {
 		{ key: 'eventId', value: '1' },
 		{ key: 'impactId', value: '1' },
 		{ key: 'vehiculeId', value: EXAMPLE_VEHICLE_UUID },
+		{ key: 'recipientUserId', value: '1' },
+		{ key: 'recipientEmail', value: 'test@sgitu.local' },
 		{ key: 'g7BaseUrl', value: 'http://localhost:8087' },
 		{ key: 'g3BaseUrl', value: 'http://localhost:8083' },
 		{ key: 'g3AccessToken', value: '' },
@@ -154,7 +156,7 @@ const guide = [
 	},
 	{
 		...req('2. POST ligne', 'POST', '{{baseUrl}}/api/g4/lignes', {
-			body: '{\n  "code": "L12",\n  "nom": "Ligne test Postman",\n  "description": "Parcours guidé",\n  "active": true\n}',
+			body: '{\n  "code": "L12-{{$timestamp}}",\n  "nom": "Ligne test Postman",\n  "description": "Parcours guidé",\n  "active": true\n}',
 		}),
 		event: [saveId('ligneId'), expectStatus(201)],
 	},
@@ -231,8 +233,7 @@ const guide = [
 		event: [saveId('impactId')],
 	},
 	req('11. POST notification', 'POST', '{{baseUrl}}/api/notifications/send', {
-		body:
-			'{\n  "canal": "MOBILE_PUSH",\n  "sujet": "Retard L12",\n  "corps": "Retard 10 min",\n  "metadata": { "missionId": "{{missionId}}" }\n}',
+		body: notificationBody(),
 	}),
 	req('12. GET missions actives', 'GET', '{{baseUrl}}/api/g4/missions/actives'),
 	req('13. GET health', 'GET', '{{baseUrl}}/api/g4/health', { noauth: true }),
@@ -485,7 +486,7 @@ collection.item.push(
 	folder('100 — Chaos G5 (optionnel)', 'Arrêter G5 puis tester', [
 		req('POST notification DEGRADED', 'POST', '{{baseUrl}}/api/notifications/send', {
 			body:
-				'{\n  "notificationId": "CHAOS-001",\n  "sourceService": "G4",\n  "eventType": "RETARD",\n  "channel": "EMAIL",\n  "recipient": { "email": "test@sgitu.local" }\n}',
+				'{\n  "notificationId": "CHAOS-001",\n  "sourceService": "COORDINATION",\n  "eventType": "DELAY_ALERT",\n  "channel": "EMAIL",\n  "recipient": { "userId": "{{recipientUserId}}", "email": "{{recipientEmail}}" },\n  "metadata": { "lineId": "L12", "reason": "RETARD_SIGNIFICATIF", "variables": { "vehiculeId": "{{vehiculeId}}", "valeur": "12", "arret": "Gare Sud" } }\n}',
 		}),
 	])
 );

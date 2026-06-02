@@ -1,27 +1,19 @@
-\documentclass[aspectratio=169, t]{beamer}
+\documentclass[aspectratio=169,t]{beamer}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[french]{babel}
-\usepackage{booktabs}
-\usepackage{graphicx}
-\usepackage{tikz}
-\usepackage{listings}
+\usepackage{booktabs,graphicx,listings,xcolor,colortbl,array,tikz}
 \usepackage{hyperref}
-\usepackage{colortbl}
-\usepackage{array}
-\usepackage{xcolor}
 
 \lstset{
   basicstyle=\ttfamily\scriptsize,
   breaklines=true,
   frame=single,
   backgroundcolor=\color{gray!10},
-  keywordstyle=\color{UAEDarkBlue}\bfseries,
-  commentstyle=\color{gray},
 }
 
-\usetheme[language=french, progressbar, sectiontoc]{uae}
+\usetheme[language=french,progressbar,sectiontoc]{uae}
 \beamertemplatenavigationsymbolsempty
 \setbeamercovered{transparent}
 
@@ -33,511 +25,279 @@
 
 \newcommand{\badge}[2]{%
   \tikz[baseline=(x.base)]\node[fill=#1,rounded corners=3pt,
-    inner xsep=4pt,inner ysep=2pt,font=\scriptsize\bfseries,
-    text=white](x){#2};%
+    inner xsep=4pt,inner ysep=2pt,font=\scriptsize\bfseries,text=white](x){#2};%
 }
 \newcommand{\badgegreen}[1]{\badge{GreenA}{#1}}
-\newcommand{\badgeorange}[1]{\badge{OrangeWarn}{#1}}
 \newcommand{\badgeblue}[1]{\badge{UAEDarkBlue}{#1}}
+\newcommand{\githubrepo}{\url{https://github.com/anadouae/SGITU-Microservices}}
+
+\newcommand{\figslide}[2]{%
+  \begin{figure}
+    \centering
+    \IfFileExists{#1}{\includegraphics[width=0.88\linewidth,keepaspectratio]{#1}}{%
+      \fcolorbox{UAEDarkBlue}{BlueLight}{\parbox{0.85\linewidth}{\centering\vspace{1.2cm}
+      \scriptsize\textbf{#2}\\\texttt{#1}\vspace{1.2cm}}}}
+  \end{figure}
+}
 
 \title{SGITU — Coordination des Transports}
-\subtitle{Microservice G4 — Livraison finale \& soutenance}
+\subtitle{Microservice G4 — Soutenance optimisée}
 \author[EL ASSAL Douae \and EL MAKOUDI Younes \and MAGNE TSAFACK Merveille]{%
-  \textbf{Groupe G4}\\[0.1cm]
-  EL ASSAL Douae\\
-  EL MAKOUDI Younes\\
-  MAGNE TSAFACK LYDIVINE MERVEILLE%
-}
-\institute{%
-  GI2 — Dev Mobile et Microservices\\[0.09cm]
-  Encadré par Pr. Zineb BESRI — Année 2025--2026%
-}
+  \textbf{Groupe G4}\\
+  EL ASSAL Douae \and EL MAKOUDI Younes \and MAGNE TSAFACK LYDIVINE MERVEILLE}
+\institute{GI2 — Dev Mobile et Microservices\\Pr. Zineb BESRI — 2025--2026}
 \date{Soutenance — juin 2026}
-\venue{ENSA Tétouan — Projet de synthèse SGITU}
-\newcommand{\githubrepo}{\url{https://github.com/anadouae/SGITU-Microservices}}
+\venue{ENSA Tétouan}
 
 \begin{document}
 \titleframe
 
-\begin{frame}{Plan de la présentation}
+\begin{frame}{Plan (15 min)}
   \tableofcontents
 \end{frame}
 
-% =============================================================================
+% --- 1. CONTEXTE ---
 \section{Cadrage}
-% =============================================================================
 
-\begin{frame}{Contexte et problème métier}
-\framesubtitle{Où se place le microservice G4 ?}
-
-\begin{columns}[T,onlytextwidth]
-\begin{column}{0.54\textwidth}
-  \textbf{SGITU} : Système de Gestion Intelligente des Transports Urbains.
-
-  \medskip
-  \textbf{Mission G4} : piloter l'exploitation du réseau en temps réel :
-  \begin{itemize}
-    \item référentiel (lignes, trajets, arrêts, horaires) ;
-    \item flotte (affectations, missions) ;
-    \item perturbations (retards, déviations, pannes) ;
-    \item liens avec incidents G9 et notifications G5.
-  \end{itemize}
-
-  \medskip
-  \badgeblue{Port 8084 — \texttt{g4-coordination}}
-\end{column}
-\begin{column}{0.42\textwidth}
-  \begin{tikzpicture}[
-    box/.style={draw=UAEDarkBlue,rounded corners=6pt,
-                fill=BlueLight,minimum width=3.4cm,
-                minimum height=0.52cm,font=\scriptsize\bfseries,
-                text=UAEDarkBlue, align=center, inner sep=5pt},
-    arr/.style={->,thick,color=UAELightBlue}
-  ]
-    \node[box] (g10) {G10 Gateway};
-    \node[box,below=0.22cm of g10,fill=GreenPale,draw=GreenA,text=GreenA] (g4)
-      {G4 Coordination};
-    \node[box,below=0.22cm of g4] (data) {PostgreSQL + Kafka};
-    \draw[arr] (g10)--(g4);
-    \draw[arr] (g4)--(data);
-  \end{tikzpicture}
-\end{column}
-\end{columns}
+\begin{frame}{Problème et positionnement G4}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.55\textwidth}
+      \textbf{SGITU} : gestion intelligente des transports urbains.\\
+      \textbf{G4} pilote l'exploitation :
+      \begin{itemize}
+        \item réseau (lignes, trajets, arrêts, horaires) ;
+        \item flotte (affectations, missions) ;
+        \item perturbations (événements, impacts G9) ;
+        \item supervision (\texttt{/health}, \texttt{/logs}, métriques).
+      \end{itemize}
+      \badgeblue{Port 8084 — hostname \texttt{g4-coordination}}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \figslide{figures/fig_01_ecosysteme_sgitu.png}{Écosystème SGITU}
+    \end{column}
+  \end{columns}
 \end{frame}
 
-\begin{frame}{Périmètre G4 — Ce que nous avons livré}
-\framesubtitle{Valeur métier et technique}
+\begin{frame}{Ce que G4 livre (synthèse)}
+  \small
+  \begin{table}
+    \begin{tabular}{@{}lp{9.5cm}@{}}
+      \toprule
+      \textbf{Axe} & \textbf{Livrable} \\
+      \midrule
+      API & 65+ endpoints \texttt{/api/g4/**}, OpenAPI, codes 409/202 \\
+      Données & PostgreSQL 16, règle 1 mission \texttt{EN\_COURS}/véhicule \\
+      Async & Kafka G7/G9 in, G1 out \\
+      Sécurité & JWT G3/G10, rôles vérifiés \textbf{localement} chez G4 \\
+      Ops & Docker, Prometheus, Postman, JUnit \\
+      Promo & Bloc G4 seul dans \texttt{docker-compose.yml} racine \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
 
-\begin{columns}[T,onlytextwidth]
-\begin{column}{0.48\textwidth}
-  \textbf{Fonctionnalités métier}
-  \begin{itemize}
-    \item CRUD réseau + horaires
-    \item Missions : planifier, suivre, clôturer
-    \item Événements coordination (sans bloquer la mission)
-    \item Impacts incident G9 (table dédiée)
-    \item Règle \textbf{409} : 1 mission \texttt{EN\_COURS} / véhicule
-  \end{itemize}
-\end{column}
-\begin{column}{0.48\textwidth}
-  \textbf{Livrables techniques}
-  \begin{itemize}
-    \item 65+ endpoints REST + OpenAPI
-    \item JWT + rôles alignés G3
-    \item Kafka G7/G9, production G1
-    \item Docker Compose + monitoring
-    \item Postman + tests JUnit
-  \end{itemize}
+% --- 2. SÉCURITÉ (message G3 / prof) ---
+\section{Sécurité}
 
+\begin{frame}{Chaîne JWT G3 $\rightarrow$ G10 $\rightarrow$ G4}
+  \framesubtitle{« Confiance gateway » = entrée unique, pas zéro contrôle chez G4}
+
+  \begin{center}
+    \begin{tikzpicture}[
+      box/.style={draw=UAEDarkBlue,rounded corners=5pt,fill=BlueLight,
+        minimum width=2.5cm,minimum height=0.75cm,font=\scriptsize\bfseries,
+        text=UAEDarkBlue,align=center},
+      arr/.style={->,thick,UAELightBlue}
+    ]
+      \node[box] (u) {Utilisateur};
+      \node[box,right=0.35cm of u] (g3) {G3\\rôles};
+      \node[box,right=0.35cm of g3] (g10) {G10\\JWT};
+      \node[box,right=0.35cm of g10,fill=GreenPale,draw=GreenA,text=GreenA] (g4) {G4\\filtre rôles};
+      \draw[arr] (u)--(g3)--(g10)--(g4);
+    \end{tikzpicture}
+  \end{center}
+
+  \small
+  \begin{itemize}
+    \item \textbf{G3} : comptes + \texttt{ROLE\_G4\_OPERATOR}, \texttt{ROLE\_DISPATCHER}, \texttt{ROLE\_G4\_ADMIN}
+    \item \textbf{G10} : login, émission JWT, routage \texttt{/api/g4/**}
+    \item \textbf{G4} : re-vérifie signature (\texttt{JWT\_SECRET} partagé) + \texttt{SecurityConfig}
+    \item Preuve : DISPATCHER $\rightarrow$ \texttt{POST /lignes} = \textbf{403}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Matrice des rôles (démo Postman)}
+  \small
+  \begin{table}
+    \begin{tabular}{@{}llp{5.8cm}@{}}
+      \toprule
+      \textbf{Compte} & \textbf{Rôle} & \textbf{Périmètre} \\
+      \midrule
+      gestionnaire.reseau & G4\_OPERATOR & Lignes, trajets, arrêts, horaires \\
+      \rowcolor{RowHL}
+      gestionnaire.flotte & DISPATCHER & Missions, affectations, events, notifications \\
+      admin.technique & G4\_ADMIN & Supervision + droits complets \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
   \vfill
-  \badgegreen{Dépôt : \githubrepo}
-\end{column}
-\end{columns}
+  \centering Dev : \texttt{POST /api/auth/login} — Promo : token via \textbf{G10}
 \end{frame}
 
-\begin{frame}{Intégrations inter-groupes}
-\framesubtitle{Contrats alignés — \texttt{CONTRATS\_ALIGNES\_G4.md}}
-
-\small
-\begin{table}
-\begin{tabular}{@{}llll@{}}
-\toprule
-\textbf{Grp.} & \textbf{Besoin G4} & \textbf{Protocole} & \textbf{Contrat clé} \\
-\midrule
-G3 & Valider \texttt{chauffeurId} & HTTP & \texttt{GET /api/users/drivers/ids} \\
-G7 & Positions GPS & Kafka & \texttt{vehicule-positions} \\
-G9 & Incidents transport & Kafka + REST & \texttt{incident.transport.topic} \\
-G1 & Cycle de vie mission & Kafka & \texttt{missions-lifecycle} \\
-G5 & Alertes opérationnelles & HTTP & façade \texttt{/api/notifications/send} \\
-G10 & Routage sécurisé & HTTP & JWT partagé \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\vfill
-\centering
-\badgeorange{G7 : Kafka \texttt{vehicle.registered} + \texttt{vehicule-positions}}
-\end{frame}
-
-% =============================================================================
+% --- 3. CONCEPTION ---
 \section{Conception}
-% =============================================================================
 
-\begin{frame}{Modèle métier — Vue UML}
-\framesubtitle{Classes, séquences, composants (\texttt{docs/diagrams/})}
-
-\begin{columns}[T,onlytextwidth]
-\begin{column}{0.50\textwidth}
-  \textbf{Entités cœur}
-  \begin{itemize}
-    \item \texttt{Mission} + \texttt{CoordinationEvent}
-    \item \texttt{MissionIncidentImpact} $\neq$ événement G4
-    \item \texttt{PendingNotification} (résilience G5)
-  \end{itemize}
-
-  \medskip
-  \textbf{Diagrammes livrés}
-  \begin{itemize}
-    \item Cas d'utilisation, classes, séquences
-    \item Composants, déploiement Docker
-    \item Activité traitement position G7
-  \end{itemize}
-\end{column}
-\begin{column}{0.46\textwidth}
-  \fcolorbox{UAEDarkBlue}{BlueLight}{\parbox{0.95\linewidth}{\centering\vspace{1.6cm}
-  \scriptsize\textbf{Capture / export UML}\\[0.2cm]
-  \texttt{figures/uml\_classes\_domaine\_g4.png}
-  \vspace{1.6cm}}}
-\end{column}
-\end{columns}
+\begin{frame}{Modèle métier — points clés UML}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \textbf{Séparation importante}
+      \begin{itemize}
+        \item \texttt{CoordinationEvent} : retard, déviation, panne
+        \item \texttt{MissionIncidentImpact} : lien mission $\leftrightarrow$ ref. G9
+        \item \texttt{VehiculeReferentiel} : UUID G7 (Kafka ou sync)
+        \item \texttt{PendingNotification} : file si G5 down
+      \end{itemize}
+      \badgeorange{Règle 409 : 1 mission active / véhicule}
+    \end{column}
+    \begin{column}{0.50\textwidth}
+      \figslide{figures/uml_classes_domaine_g4.png}{Classes domaine G4}
+    \end{column}
+  \end{columns}
 \end{frame}
 
-\begin{frame}{Flux critiques — Séquences}
-\framesubtitle{Création mission, Kafka G7, Chaos Monkey G5}
-
-\begin{center}
-\begin{tikzpicture}[
-  box/.style={draw=UAEDarkBlue,rounded corners=4pt,fill=BlueLight,
-              minimum width=2.9cm,minimum height=0.65cm,
-              font=\scriptsize\bfseries,text=UAEDarkBlue,align=center},
-  arr/.style={->,thick,UAELightBlue}
-]
-  \node[box] (m) {POST mission\\+ JWT G3};
-  \node[box,right=0.5cm of m] (k) {Kafka G7\\position};
-  \node[box,right=0.5cm of k] (c) {G5 down\\DEGRADED};
-  \draw[arr] (m)--(k);
-  \draw[arr] (k)--(c);
-\end{tikzpicture}
-\end{center}
-
-\small
-\begin{enumerate}
-  \item \textbf{Mission} : validation conducteur G3 (optionnelle), persistance, 409 si conflit véhicule.
-  \item \textbf{G7} : consumer \texttt{vehiculeId}, \texttt{lat}, \texttt{long} $\rightarrow$ log + déviation possible.
-  \item \textbf{G5} : Resilience4j $\rightarrow$ 202 \texttt{DEGRADED}, file PENDING, retry 30\,s.
-\end{enumerate}
-\end{frame}
-
-% =============================================================================
-\section{Architecture}
-% =============================================================================
-
-\begin{frame}{Stack et architecture en couches}
-\framesubtitle{Spring Boot 3.5 — production-ready}
-
-\small
-\begin{table}
-\begin{tabular}{@{}llp{6.8cm}@{}}
-\toprule
-\textbf{Couche} & \textbf{Techno} & \textbf{Rôle} \\
-\midrule
-Présentation & Controllers REST & API \texttt{/api/g4/**}, Swagger \\
-Métier & Services & Règles missions, événements, 409 \\
-Persistance & JPA + PostgreSQL 16 & Données transactionnelles \\
-Intégration & Kafka + RestClient & G1, G3, G5, G7, G9 \\
-Infra & Docker, Actuator & Portabilité, métriques \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\vfill
-\badgegreen{Bonus : Kafka · Prometheus/Grafana · manifestes K8s}
-\end{frame}
-
-\begin{frame}{Conteneurisation Docker}
-\framesubtitle{Multi-stage — utilisateur non-root \texttt{g4}}
-
-\begin{columns}[T,onlytextwidth]
-\begin{column}{0.52\textwidth}
-  \begin{tikzpicture}[
-    stage/.style={draw=UAEDarkBlue,rounded corners=4pt,fill=BlueLight,
-                  minimum width=3.6cm,text width=3.4cm,
-                  minimum height=1.2cm,font=\scriptsize,
-                  text=UAEDarkBlue,align=left,inner sep=5pt},
-    arr/.style={->,thick,UAELightBlue}
-  ]
-    \node[stage] (s1) {
-      \textbf{Stage build}\\
-      JDK 17 + Maven\\
-      \texttt{mvnw package}
-    };
-    \node[stage,right=0.7cm of s1,fill=GreenPale,draw=GreenA,text=GreenA] (s2) {
-      \textbf{Stage runtime}\\
-      JRE Alpine\\
-      port \textbf{8084}
-    };
-    \draw[arr] (s1)--(s2);
-  \end{tikzpicture}
-\end{column}
-\begin{column}{0.44\textwidth}
-  \textbf{Compose G4}
-  \begin{itemize}
-    \item \texttt{g4-coordination}
-    \item \texttt{postgres} (5434)
-    \item \texttt{kafka} (9092)
-    \item profil \texttt{monitoring}
-  \end{itemize}
-
-  \medskip
-  \fcolorbox{UAEDarkBlue}{gray!8}{\parbox{0.95\linewidth}{\centering\vspace{0.9cm}
-  \tiny Capture Docker Desktop\\
-  \texttt{fig\_6\_2\_docker\_desktop.png}
-  \vspace{0.9cm}}}
-\end{column}
-\end{columns}
-\end{frame}
-
-% =============================================================================
-\section{API \& Sécurité}
-% =============================================================================
-
-\begin{frame}{Documentation API REST}
-\framesubtitle{OpenAPI 3 — Swagger UI}
-
-\begin{columns}[T,onlytextwidth]
-\begin{column}{0.55\textwidth}
-  \textbf{Familles d'endpoints}
+\begin{frame}{Flux à montrer à l'oral}
   \small
-  \begin{itemize}
-    \item \texttt{/api/g4/lignes|trajets|arrets|horaires}
-    \item \texttt{/api/g4/missions|affectations|events}
-    \item \texttt{/api/g4/incident-impacts}
-    \item \texttt{/api/notifications/send}
-    \item \texttt{/api/g4/health|logs} (supervision)
-  \end{itemize}
-
-  \medskip
-  \begin{lstlisting}
-POST /api/g4/missions
-Authorization: Bearer <JWT>
-{"vehiculeId":"00000000-0000-4000-8000-000000000001","chauffeurId":"1",
- "ligneId":1,"statut":"EN_COURS"}
-=> 201 Created
-  \end{lstlisting}
-\end{column}
-\begin{column}{0.42\textwidth}
-  \fcolorbox{UAEDarkBlue}{BlueLight}{\parbox{0.95\linewidth}{\centering\vspace{1.4cm}
-  \scriptsize\textbf{Capture Swagger}\\
-  \texttt{fig\_4\_1\_swagger\_overview.png}
-  \vspace{1.4cm}}}
-\end{column}
-\end{columns}
-\end{frame}
-
-\begin{frame}{Sécurité JWT et rôles}
-\framesubtitle{Défense en profondeur — alignement G3 / G10}
-
-\small
-\begin{table}
-\begin{tabular}{@{}llp{5.5cm}@{}}
-\toprule
-\textbf{Rôle} & \textbf{Profil} & \textbf{Actions G4} \\
-\midrule
-\texttt{ROLE\_G4\_OPERATOR} & Réseau & Lignes, trajets, arrêts, horaires \\
-\rowcolor{RowHL}
-\texttt{ROLE\_DISPATCHER} & Flotte & Missions, événements, notifications \\
-\texttt{ROLE\_G4\_ADMIN} & Technique & Supervision, retry PENDING \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{block}{Validation croisée (pilier 3)}
-  Token JWT G3 accepté par G4 — preuve Postman dossier \textbf{99}.
-\end{block}
-\end{frame}
-
-% =============================================================================
-\section{Intégration \& Résilience}
-% =============================================================================
-
-\begin{frame}{Communication asynchrone — Kafka}
-\framesubtitle{Bonus exigé — event-driven}
-
-\begin{center}
-\begin{tikzpicture}[
-  svc/.style={draw=UAEDarkBlue,rounded corners=5pt,fill=BlueLight,
-              minimum width=2.2cm,minimum height=0.9cm,
-              font=\scriptsize\bfseries,text=UAEDarkBlue,align=center},
-  q/.style={draw=GreenA,rounded corners=5pt,fill=GreenPale,
-            minimum width=2.6cm,minimum height=0.7cm,
-            font=\scriptsize,text=GreenA,align=center},
-  arr/.style={->,thick}
-]
-  \node[svc] (g7) {G7};
-  \node[q,right=0.6cm of g7] (t1) {vehicule-\\positions};
-  \node[svc,right=0.6cm of t1,fill=GreenPale,draw=GreenA,text=GreenA] (g4) {G4};
-  \node[q,right=0.6cm of g4] (t2) {missions-\\lifecycle};
-  \node[svc,right=0.6cm of t2] (g1) {G1};
-  \draw[arr,UAELightBlue] (g7)--(t1);
-  \draw[arr,UAELightBlue] (t1)--(g4);
-  \draw[arr,GreenA] (g4)--(t2);
-  \draw[arr,GreenA] (t2)--(g1);
-\end{tikzpicture}
-\end{center}
-
-\small
-Champs obligatoires message G7 : \texttt{vehiculeId}, \texttt{lat}, \texttt{long}.
-Validateur \texttt{KafkaContractValidator} — rejet propre sans crash.
-\end{frame}
-
-\begin{frame}{Chaos Monkey — Résilience G5}
-\framesubtitle{Challenge Pr. BESRI — démonstration soutenance}
-
-\begin{columns}[T,onlytextwidth]
-\begin{column}{0.52\textwidth}
-  \textbf{Scénario démo}
   \begin{enumerate}
-    \item \texttt{docker stop g5-notification-service}
-    \item \texttt{POST /api/notifications/send}
-    \item Réponse \textbf{202 DEGRADED} (pas de 500)
-    \item \texttt{GET /api/g4/pending-notifications}
-    \item Relancer G5 $\rightarrow$ retry auto / manuel
+    \item \textbf{Mission} : JWT DISPATCHER $\rightarrow$ POST mission (UUID véhicule) $\rightarrow$ 201 ou 409
+    \item \textbf{G7} : topic \texttt{vehicule-positions} $\rightarrow$ log + déviation possible
+    \item \textbf{G5 down} : POST notification $\rightarrow$ 202 \texttt{DEGRADED} + retry 30s
+    \item \textbf{G9} : \texttt{incident-impacts} distinct de \texttt{/events}
   \end{enumerate}
-
-  \medskip
-  \badgegreen{G4 reste UP — pattern fallback + retry}
-\end{column}
-\begin{column}{0.44\textwidth}
-  \begin{alertblock}{Phrase clé à l'oral}
-    « La commande métier ne tombe pas : la notification est mise en file et repart dès que G5 revient. »
-  \end{alertblock}
-
-  \fcolorbox{OrangeWarn}{gray!8}{\parbox{0.95\linewidth}{\centering\vspace{1cm}
-  \tiny Capture Postman\\
-  \texttt{fig\_postman\_chaos\_degraded.png}
-  \vspace{1cm}}}
-\end{column}
-\end{columns}
+  \figslide{figures/uml_seq_mission_create.png}{Séquence création mission}
 \end{frame}
 
-\begin{frame}{Les 3 piliers de la livraison finale}
-\framesubtitle{Exigences Pr. BESRI — mai 2026}
+% --- 4. TECHNIQUE ---
+\section{Architecture}
 
-\small
-\begin{table}
-\begin{tabular}{@{}p{2.4cm}p{9.2cm}@{}}
-\toprule
-\textbf{Pilier} & \textbf{Réalisation G4} \\
-\midrule
-Intégration sans couture & Réseau \texttt{sgitu-network}, bloc G4 dans monorepo, \texttt{.env.example} périmètre G4 seul \\
-\rowcolor{RowHL}
-Observabilité & \texttt{/health}, \texttt{/logs}, Prometheus job \texttt{g4-coordination:8084}, dashboard Grafana \\
-Validation croisée & Postman : JWT G3 $\rightarrow$ mission G4 (capture dossier 99) \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\vfill
-\centering
-\badgeblue{Monorepo : nous n'hébergeons pas G5/G7 — nous consommons leurs contrats}
-\end{frame}
-
-% =============================================================================
-\section{Validation}
-% =============================================================================
-
-\begin{frame}{Tests et preuves de qualité}
-\framesubtitle{JUnit 5 + collection Postman}
-
-\begin{columns}[T,onlytextwidth]
-\begin{column}{0.48\textwidth}
-  \textbf{Tests automatisés}
+\begin{frame}{Stack et intégrations}
   \small
-  \begin{itemize}
-    \item \texttt{./mvnw test} — BUILD SUCCESS
-    \item 409 conflit véhicule
-    \item 403 rôle incorrect
-    \item Health public sans token
-  \end{itemize}
-\end{column}
-\begin{column}{0.48\textwidth}
-  \textbf{Postman}
+  \begin{table}
+    \begin{tabular}{@{}llll@{}}
+      \toprule
+      \textbf{Grp} & \textbf{Mode} & \textbf{Contrat} & \textbf{Côté G4} \\
+      \midrule
+      G3 & HTTP & \texttt{GET .../drivers/ids} & Valide chauffeur \\
+      G7 & Kafka & \texttt{vehicle.registered}, \texttt{vehicule-positions} & Référentiel + events \\
+      G9 & Kafka/REST & \texttt{incident.transport.topic} & Table impacts \\
+      G1 & Kafka & \texttt{missions-lifecycle} & Producer \\
+      G5 & HTTP & notification & Circuit breaker \\
+      G10 & HTTP & JWT + route & Client officiel promo \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+\begin{frame}{Docker : deux niveaux}
+  \framesubtitle{Ne pas confondre compose local G4 et monorepo promo}
+
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.50\textwidth}
+      \textbf{1. Monorepo racine}\\
+      \texttt{SGITU-Microservices/docker-compose.yml}
+      \begin{itemize}
+        \item Bloc \texttt{g4-coordination} + \texttt{g4-postgres}
+        \item Kafka + Prometheus \textbf{communs}
+        \item On ne modifie \textbf{pas} G5/G7/G10
+      \end{itemize}
+      \badgegreen{Job Prometheus : g4-coordination:8084}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{2. Dev G4 seul}\\
+      \texttt{service-coordination-transport/}
+      \begin{itemize}
+        \item \texttt{docker compose up -d}
+        \item Profil \texttt{monitoring} optionnel
+      \end{itemize}
+      \figslide{figures/docker_compose_running.png}{Compose running}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% --- 5. DÉMO ---
+\section{Démonstration}
+
+\begin{frame}{API — exemple mission}
+  \begin{lstlisting}
+POST http://localhost:8084/api/g4/missions
+Authorization: Bearer <JWT>
+{
+  "vehiculeId": "00000000-0000-4000-8000-000000000001",
+  "ligneId": 1, "statut": "PLANIFIEE",
+  "plannedStart": "2026-05-29T08:00:00Z"
+}
+=> 201 Created  |  conflit vehicule => 409
+  \end{lstlisting}
+  \figslide{figures/fig_4_1_swagger_overview.png}{Swagger UI}
+\end{frame}
+
+\begin{frame}{Chaos Monkey G5 — phrase clé}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.55\textwidth}
+      \textbf{Démo soutenance}
+      \begin{enumerate}
+        \item Arrêter G5 (ou URL injoignable)
+        \item \texttt{POST /api/notifications/send}
+        \item \textbf{202 DEGRADED} — G4 reste UP
+        \item \texttt{GET /api/g4/pending-notifications}
+        \item Relancer G5 $\rightarrow$ retry
+      \end{enumerate}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{alertblock}{À dire}
+        « La commande métier ne tombe pas : la notification part en file et repart quand G5 revient. »
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{3 piliers Pr. BESRI}
   \small
-  \begin{itemize}
-    \item Dossiers 01--10 : parcours métier
-    \item 99 : validation croisée G3
-    \item 100 : Chaos Monkey G5
-  \end{itemize}
-
-  \fcolorbox{UAEDarkBlue}{gray!8}{\parbox{0.95\linewidth}{\centering\vspace{0.8cm}
-  \tiny \texttt{mvnw test} + collection\\
-  \vspace{0.8cm}}}
-\end{column}
-\end{columns}
+  \begin{table}
+    \begin{tabular}{@{}p{2.3cm}p{9.4cm}@{}}
+      \toprule
+      \textbf{Pilier} & \textbf{Preuve G4} \\
+      \midrule
+      Intégration & Réseau \texttt{sgitu-network}, bloc G4 racine, \texttt{.env} bloc G4 \\
+      \rowcolor{RowHL}
+      Observabilité & \texttt{/health}, \texttt{/logs}, scrape Prometheus, Grafana \\
+      Validation croisée & JWT G3 (ou G10) accepté par G4 — Postman \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
 \end{frame}
 
-\begin{frame}{Critères d'évaluation — Synthèse}
-\framesubtitle{Alignement grille finale (100 pts)}
-
-\small
-\begin{table}
-\begin{tabular}{@{}lp{5.2cm}p{4.8cm}@{}}
-\toprule
-\textbf{Critère} & \textbf{Attendu} & \textbf{G4} \\
-\midrule
-Fonctionnalité & 100\,\% cas d'usage & Référentiel + flotte + événements + intégrations \\
-Qualité API & REST + erreurs + doc & OpenAPI + 409/202 structurés \\
-Sécurité & JWT + rôles & Spring Security + G3 \\
-Conteneurisation & Compose OK & G4 + Postgres + Kafka \\
-Rigueur & UML + rapport & Rapport PDF + diagrammes \\
-Bonus & Kafka, K8s, monitoring & \badgegreen{Oui} \\
-\bottomrule
-\end{tabular}
-\end{table}
-\end{frame}
-
-% =============================================================================
+% --- 6. CONCLUSION ---
 \section{Conclusion}
-% =============================================================================
 
-\begin{frame}{Synthèse et perspectives}
-\framesubtitle{Produit prêt pour l'écosystème SGITU}
-
-\begin{columns}[T,onlytextwidth]
-\begin{column}{0.52\textwidth}
-  \begin{block}{Ce que nous avons livré}
-    \begin{itemize}
-      \item Microservice G4 complet port \textbf{8084}
-      \item Architecture REST + Kafka + PostgreSQL
-      \item Sécurité JWT, résilience G5, monitoring
-      \item Rapport PDF + ce support
-      \item Code : \githubrepo
-    \end{itemize}
+\begin{frame}{Synthèse}
+  \begin{block}{Livré}
+    Microservice G4 complet, documenté, testé, intégré au monorepo sans toucher le code des autres groupes.
   \end{block}
-
+  \textbf{Dépôt :} \githubrepo\\
+  \textbf{Module :} \texttt{service-coordination-transport/}
   \medskip
-  \textbf{Archive :} \texttt{G4\_SGITU\_Final.zip}
-\end{column}
-\begin{column}{0.44\textwidth}
-  \begin{alertblock}{Perspectives}
-    \begin{itemize}
-      \item Tests live avec tous les groupes le 29 mai
-      \item Déploiement K8s promo
-      \item Auth 100\,\% via G10 en production
-    \end{itemize}
-  \end{alertblock}
-
-  \medskip
-  \begin{exampleblock}{Démo live suggérée}
-    Swagger $\rightarrow$ mission $\rightarrow$ stop G5 $\rightarrow$ DEGRADED $\rightarrow$ logs G7
-  \end{exampleblock}
-\end{column}
-\end{columns}
+  \textbf{Démo live (3 min)} : health $\rightarrow$ mission $\rightarrow$ 403 rôle $\rightarrow$ stop G5 $\rightarrow$ DEGRADED
 \end{frame}
 
 \begin{frame}[plain,noframenumbering]
   \begin{tikzpicture}[remember picture,overlay]
-    \fill[UAEDarkBlue] (current page.south west)
-      rectangle (current page.north east);
+    \fill[UAEDarkBlue] (current page.south west) rectangle (current page.north east);
   \end{tikzpicture}
   \begin{center}
-    \vspace{3cm}
-    {\LARGE\bfseries\color{white} Merci pour votre attention}\\[0.6cm]
-    {\large\color{UAELightBlue} Questions ?}\\[0.8cm]
-    {\small\color{white!80}
-      Groupe G4 — EL ASSAL · EL MAKOUDI · MAGNE TSAFACK}\\[0.3cm]
-    {\small\color{white!70} \githubrepo}\\[0.2cm]
-    {\footnotesize\color{white!60} Pr. BESRI — Dev Mobile et Microservices — 2025--2026}
+    \vspace{2.8cm}
+    {\LARGE\bfseries\color{white} Merci — Questions ?}\\[0.6cm]
+    {\small\color{white!80} Groupe G4 — EL ASSAL · EL MAKOUDI · MAGNE TSAFACK}\\[0.2cm]
+    {\footnotesize\color{white!60} \githubrepo}
   \end{center}
 \end{frame}
 

@@ -1,30 +1,40 @@
-# Compiler la présentation G4 sur Overleaf
+# Compilation LaTeX — G4 (versions optimisées)
 
-## Fichiers obligatoires (même dossier que `presentation.tex`)
+## Fichiers à utiliser
 
-Uploader **tous** ces fichiers :
+| Document | Fichier LaTeX |
+|----------|----------------|
+| **Rapport final** | `RAPPORT_FINAL_G4_SGITU.tex` |
+| **Soutenance (~15 min)** | `PRESENTATION_G4_SGITU.tex` |
 
-| Fichier |
-|---------|
-| `presentation.tex` (ou `PRESENTATION_G4_SGITU.tex` renommé) |
-| `beamerthemeuae.sty` |
-| `beamercolorthemeuae.sty` |
-| `beamerinnerthemeuae.sty` |
-| `beamerouterthemeuae.sty` |
+Anciens fichiers (`RAPPORT_G4_COORDINATION.tex`, `PRESENTATION_G4.tex`) : conservés pour historique.
 
-## Optionnel
+## Overleaf / local
 
-- `logo_uae_ensa.png` ou `image.png` (logo ENSA)
-- Captures dans `figures/` (sinon les cadres gris suffisent)
+1. Créer un projet avec **tout le dossier** `service-coordination-transport/` (thème `beamerthemeuae.sty` + dossier `figures/`).
+2. Compiler :
+   - Rapport : `pdflatex RAPPORT_FINAL_G4_SGITU.tex` (×2 si sommaire)
+   - Slides : `pdflatex PRESENTATION_G4_SGITU.tex` (×2)
 
-## Erreur corrigée
+## Figures manquantes
 
-`beamerthemeuae.sty not found` → les 4 fichiers `.sty` ci-dessus sont dans `service-coordination-transport/`.
+Les commandes `\figimg` / `\figslide` affichent un cadre bleu si le PNG n'existe pas. Générer les UML :
 
-## Si `output.pdf` existe sur Overleaf
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/generate-figures-mermaid.ps1
+```
 
-Renommer ou supprimer `output.pdf` puis recompiler.
+Captures Swagger/Docker/Postman : déposer dans `figures/` (voir `figures/README_FIGURES.md`).
 
-## Compilateur
+## Présentation — timing oral
 
-**pdfLaTeX** (menu Overleaf : Compiler = pdfLaTeX).
+| Section | Slides | ~min |
+|---------|--------|------|
+| Cadrage | 2 | 2 |
+| Sécurité G3→G10→G4 | 2 | 3 |
+| Conception | 2 | 3 |
+| Architecture + Docker | 2 | 3 |
+| Démo + Chaos + Piliers | 3 | 3 |
+| Conclusion | 2 | 1 |
+
+**Total : ~15 min** (+ questions)

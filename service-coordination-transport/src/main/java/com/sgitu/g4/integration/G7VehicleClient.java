@@ -84,7 +84,7 @@ public class G7VehicleClient {
 			log.warn("G7 PUT statut échoué pour {}: {}", vehiculeId, ex.getMessage());
 			if (integrationProperties.isG7FlowStrict()) {
 				throw new BadRequestException(
-						"Impossible de notifier G7 (EN_SERVICE) : " + ex.getMessage());
+						"Impossible de notifier G7 (statut " + statutG7 + ") : " + ex.getMessage());
 			}
 			return Map.of("vehiculeId", vehiculeId, "statut", statutG7, "source", "MOCK", "warning", ex.getMessage());
 		}
@@ -92,5 +92,9 @@ public class G7VehicleClient {
 
 	public void notifyEnService(String vehiculeId) {
 		updateStatut(vehiculeId, "EN_SERVICE");
+	}
+
+	public void notifyDisponible(String vehiculeId) {
+		updateStatut(vehiculeId, "DISPONIBLE");
 	}
 }

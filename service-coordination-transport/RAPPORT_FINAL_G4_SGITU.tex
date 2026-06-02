@@ -141,6 +141,7 @@ Le service G4 (port \textbf{8084}) est le \textbf{pilote opérationnel du résea
     \item réagir aux \textbf{perturbations} via des événements de coordination (retard, déviation, panne, annulation) ;
     \item \textbf{relier} les missions aux incidents déclarés par G9 sans confondre les modèles ;
     \item \textbf{superviser} l'état du service et des intégrations (health, logs, métriques) ;
+    \item \textbf{consommer} les véhicules G7 (Kafka \texttt{vehicle.registered} ou sync REST) avant affectation/mission ;
     \item \textbf{communiquer} avec les autres groupes (G1, G3, G5, G7, G9, G10) par REST et Kafka.
 \end{itemize}
 
@@ -159,7 +160,7 @@ Le service G4 (port \textbf{8084}) est le \textbf{pilote opérationnel du résea
 \textbf{Grp.} & \textbf{Service} & \textbf{Rôle vis-à-vis de G4} & \textbf{Protocole} \\
 \midrule
 G3 & Utilisateurs & Validation \texttt{chauffeurId}, rôles JWT & HTTP \\
-G7 & Suivi véhicules & Flux positions GPS & Kafka \\
+G7 & Suivi véhicules & Enregistrement véhicule + positions GPS & Kafka + HTTP (statut) \\
 G9 & Incidents & Références incident $\rightarrow$ mission & Kafka + REST \\
 G1 & Billetterie & Cycle de vie mission & Kafka \\
 G5 & Notifications & Envoi d'alertes opérationnelles & HTTP \\
@@ -213,8 +214,9 @@ Le modèle relationnel couvre six zones fonctionnelles :
 \textbf{Ligne}, \textbf{Trajet}, \textbf{Arret}, \textbf{Horaire} : structure statique du réseau. Un trajet appartient à une ligne ; les arrêts sont filtrables par ligne ; les horaires cadencent l'exploitation.
 
 \subsection{Exploitation flotte}
-\textbf{AffectationVehiculeLigne} : association temporelle véhicule $\leftrightarrow$ ligne.\\
-\textbf{Mission} : unité centrale d'exploitation (\texttt{vehiculeId}, \texttt{chauffeurId}, \texttt{statut} : PLANIFIEE, EN\_COURS, CLOTUREE, ANNULEE).\\
+\textbf{VehiculeReferentiel} : copie locale des véhicules connus (Kafka \texttt{vehicle.registered} ou \texttt{POST /api/g4/vehicules/sync-from-g7/\{id\}}).\\
+\textbf{AffectationVehiculeLigne} : association temporelle véhicule $\leftrightarrow$ ligne ; si statut ACTIF, appel G7 \texttt{EN\_SERVICE}.\\
+\textbf{Mission} : unité centrale (\texttt{vehiculeId} UUID G7, \texttt{chauffeurId}, statuts PLANIFIEE, EN\_COURS, CLOTUREE, ANNULEE).\\
 \textbf{Règle métier critique} : un seul \texttt{EN\_COURS} par \texttt{vehiculeId} $\Rightarrow$ HTTP \textbf{409 Conflict}.
 
 \subsection{Coordination et incidents}
@@ -341,10 +343,29 @@ Chaque requête REST suit le flux : \textbf{Controller} (validation HTTP, sécur
 \section{Pilier 1 — Intégration sans couture (exigence Pr. BESRI)}
 \begin{itemize}[leftmargin=*]
     \item Réseau Docker partagé \texttt{sgitu-network} ;
-    \item Compose local G4 autonome : \texttt{docker compose up -d --build} ;
-    \item Intégration monorepo : le groupe G4 ajoute \textbf{uniquement} \texttt{g4-coordination} + \texttt{g4-postgres} dans le compose racine (pas de stack G5/G7 imposée par G4) ;
-    \item Variables centralisées : \texttt{.env.example} (bloc G4 seulement côté promo).
+    \item Compose local G4 autonome : \texttt{docker compose up -d --build} dans \texttt{service-coordination-transport/} ;
+    \item Compose \textbf{promo commun} : \texttt{SGITU-Microservices/docker-compose.yml} — le groupe G4 modifie \textbf{uniquement} le bloc \texttt{g4-coordination}, \texttt{g4-postgres} et le job \texttt{g4-coordination} dans \texttt{prometheus.yml} ;
+    \item Variables : bloc G4 dans \texttt{.env.example} racine (surcharge optionnelle des topics Kafka).
 \end{itemize}
+
+\subsection{Bloc G4 dans le docker-compose racine (référence)}
+\begin{center}
+\scriptsize
+\begin{tabular}{@{}lp{9.8cm}@{}}
+\toprule
+\textbf{Variable (extrait)} & \textbf{Rôle} \\
+\midrule
+\texttt{SPRING\_KAFKA\_BOOTSTRAP\_SERVERS} & Broker commun \texttt{kafka:9092} \\
+\texttt{SGITU\_KAFKA\_TOPIC} & Topic sortant événements coordination G4 \\
+\texttt{SGITU\_G7\_VEHICLE\_REGISTERED\_TOPIC} & Consumer : référentiel véhicules \\
+\texttt{SGITU\_G7\_POSITIONS\_TOPIC} & Consumer : positions / déviation \\
+\texttt{SGITU\_G9\_INCIDENT\_TOPIC} & Consumer : incidents transport \\
+\texttt{SGITU\_G1\_MISSION\_TOPIC} & Producer : cycle de vie mission \\
+\texttt{SGITU\_G3\_URL}, \texttt{SGITU\_G7\_URL}, \texttt{SGITU\_G10\_URL} & URLs internes Docker (sans modifier les services tiers) \\
+\texttt{SGITU\_G7\_FLOW\_ENABLED} & Active le contrôle véhicule G7 côté G4 \\
+\bottomrule
+\end{tabular}
+\end{center}
 
 \capturespace{2cm}{Figure 13 — Docker Compose : conteneurs Running}{figures/fig_docker_compose_running.png}
 
@@ -474,12 +495,19 @@ Topic: vehicule-positions
 % ============================================================
 \chapter{Sécurité — JWT, rôles et bonnes pratiques}
 
-\section{Modèle de sécurité retenu}
+\section{Modèle de sécurité retenu — G3, G10 et G4}
+\textbf{Chaîne promo (accord G3 / remarque prof) :}
+\begin{center}
+\small
+G3 (rôles utilisateur) $\rightarrow$ G10 (login + JWT + gateway) $\rightarrow$ G4 (re-vérification locale)
+\end{center}
+« Faire confiance à la gateway » signifie : \textbf{point d'entrée unique} et token officiel en production — \textbf{pas} l'absence de contrôle chez G4. Chaque microservice garde son \texttt{SecurityConfig}.
+
 G4 applique une défense en profondeur :
 \begin{enumerate}[leftmargin=*]
-    \item \textbf{Authentification} : JWT signé (secret partagé promo \texttt{JWT\_SECRET}) ;
-    \item \textbf{Autorisation} : rôles vérifiés localement via \texttt{@PreAuthorize} ;
-    \item \textbf{Validation métier} : conducteur validé chez G3 si activé ;
+    \item \textbf{Authentification} : JWT signé (secret partagé \texttt{JWT\_SECRET} / \texttt{SGITU\_JWT\_SECRET}) ;
+    \item \textbf{Autorisation} : rôles G3 (\texttt{G4\_OPERATOR}, \texttt{DISPATCHER}, \texttt{G4\_ADMIN}) vérifiés dans \texttt{SecurityConfig.java} ;
+    \item \textbf{Validation métier} : conducteur validé chez G3 si activé ; véhicule UUID G7 si flow activé ;
     \item \textbf{Exposition limitée} : health/logs/swagger/actuator publics pour supervision et tests.
 \end{enumerate}
 
@@ -592,6 +620,7 @@ Les 20\,\% restants identifiés par l'enseignante (alignement strict des contrat
 \toprule
 \textbf{Topic} & \textbf{Sens} & \textbf{Partenaire} \\
 \midrule
+\texttt{vehicle.registered} & Entrant & G7 \\
 \texttt{vehicule-positions} & Entrant & G7 \\
 \texttt{incident.transport.topic} & Entrant & G9 \\
 \texttt{missions-lifecycle} & Sortant & G1 \\

@@ -109,6 +109,14 @@ foreach ($step in $plan) {
 # Optionnels (ne bloquent pas le rapport final)
 foreach ($opt in @('99 — Intégration G3 (optionnel)', '100 — Chaos G5 (optionnel)')) {
 	Write-Step "$opt (optionnel)"
+	if ($opt -like '99*') {
+		try {
+			Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:8083/api/auth/login' -Method Post -ContentType 'application/json' -Body '{"username":"x","password":"x"}' -TimeoutSec 2 | Out-Null
+		} catch {
+			Write-Host 'Ignoré: 99 — G3 non démarré sur 8083' -ForegroundColor Yellow
+			continue
+		}
+	}
 	try { Invoke-NewmanFolder $opt (Get-G4Token 'gestionnaire.flotte') } catch { Write-Host "Ignoré: $opt" -ForegroundColor Yellow }
 }
 

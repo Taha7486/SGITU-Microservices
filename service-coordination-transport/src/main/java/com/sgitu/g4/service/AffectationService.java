@@ -78,6 +78,8 @@ public class AffectationService {
 	public AffectationResponse update(Long id, AffectationRequest request) {
 		AffectationVehiculeLigne entity = affectationRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Affectation introuvable : " + id));
+		StatutAffectation previousStatut = entity.getStatut();
+		String previousVehiculeId = entity.getVehiculeId();
 		String vehiculeId = VehiculeReferentielService.normalizeVehiculeId(request.getVehiculeId());
 		Ligne ligne = ligneRepository.findById(request.getLigneId())
 				.orElseThrow(() -> new ResourceNotFoundException("Ligne introuvable : " + request.getLigneId()));
@@ -88,15 +90,29 @@ public class AffectationService {
 		entity.setDateFin(request.getDateFin());
 		entity.setStatut(request.getStatut());
 		entity.setCommentaire(request.getCommentaire());
-		return EntityMapper.toDto(affectationRepository.save(entity));
+		AffectationVehiculeLigne saved = affectationRepository.save(entity);
+		if (saved.getStatut() == StatutAffectation.ACTIF && previousStatut != StatutAffectation.ACTIF) {
+			g7VehicleClient.notifyEnService(vehiculeId);
+			vehiculeReferentielService.markEnServiceAfterAffectation(vehiculeId, ligne.getId());
+			supervisionLogService.add("INFO", "AFFECTATION",
+					"Véhicule " + vehiculeId + " → ligne " + ligne.getId() + ", G7 EN_SERVICE (mise à jour)");
+		}
+		if (saved.getStatut() == StatutAffectation.TERMINE) {
+			vehiculeReferentielService.tryReleaseVehicleIfIdle(vehiculeId);
+		}
+		if (previousStatut == StatutAffectation.ACTIF && !previousVehiculeId.equals(vehiculeId)) {
+			vehiculeReferentielService.tryReleaseVehicleIfIdle(previousVehiculeId);
+		}
+		return EntityMapper.toDto(saved);
 	}
 
 	@Transactional
 	public void delete(Long id) {
-		if (!affectationRepository.existsById(id)) {
-			throw new ResourceNotFoundException("Affectation introuvable : " + id);
-		}
+		AffectationVehiculeLigne entity = affectationRepository.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Affectation introuvable : " + id));
+		String vehiculeId = entity.getVehiculeId();
 		affectationRepository.deleteById(id);
+		vehiculeReferentielService.tryReleaseVehicleIfIdle(vehiculeId);
 	}
 
 	private static void validateDates(AffectationRequest request) {

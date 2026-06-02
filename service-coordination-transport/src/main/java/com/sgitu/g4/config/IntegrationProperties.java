@@ -18,6 +18,19 @@ public class IntegrationProperties {
 	/** Contrat G3 : GET /api/users/drivers/ids (context-path /api sur G3). */
 	private String g3DriversIdsPath = "/api/users/drivers/ids";
 
+	/** Contrat G3→G4→G5 : GET /api/users/notification-recipients */
+	private boolean g3NotificationRecipientsEnabled = true;
+	private boolean g3NotificationRecipientsStrict = false;
+	private String g3NotificationRecipientsPath = "/api/users/notification-recipients";
+	private int g3NotificationRecipientsPageSize = 100;
+	/** Optionnel, ex. ROLE_DISPATCHER,ROLE_SUPERVISOR */
+	private String g3NotificationRecipientRoles = "";
+	/**
+	 * JWT compte {@code ROLE_G4_OPERATOR} pour appels G3 hors requête HTTP (Kafka retard/déviation, etc.).
+	 * Obtenir via POST G3 {@code /api/auth/login} ; ne pas committer en clair en prod.
+	 */
+	private String g3ServiceBearerToken = "";
+
 	/** URL billetterie (G1). */
 	private String g1BaseUrl = "http://localhost:8081";
 	private String g5BaseUrl = "http://localhost:8085";

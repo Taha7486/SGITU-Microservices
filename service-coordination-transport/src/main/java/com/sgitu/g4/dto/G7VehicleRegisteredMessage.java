@@ -1,5 +1,6 @@
 package com.sgitu.g4.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.Data;
 
 /**
@@ -12,5 +13,6 @@ public class G7VehicleRegisteredMessage {
 	private String immatriculation;
 	private String type;
 	private String statut;
+	@JsonAlias("createdAt")
 	private String timestamp;
 }

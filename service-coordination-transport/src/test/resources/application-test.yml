@@ -20,8 +20,11 @@ sgitu:
   integration:
     g7-flow-enabled: false
     g3-validation-enabled: false
+    g3-notification-recipients-enabled: false
   kafka:
     enabled: false
+  g5-notification:
+    post-on-event-enabled: false
 
 logging:
   level:

@@ -55,6 +55,14 @@
 			"value": "00000000-0000-4000-8000-000000000001"
 		},
 		{
+			"key": "recipientUserId",
+			"value": "1"
+		},
+		{
+			"key": "recipientEmail",
+			"value": "test@sgitu.local"
+		},
+		{
 			"key": "g7BaseUrl",
 			"value": "http://localhost:8087"
 		},
@@ -271,7 +279,7 @@
 						"url": "{{baseUrl}}/api/g4/lignes",
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"code\": \"L12\",\n  \"nom\": \"Ligne test Postman\",\n  \"description\": \"Parcours guidé\",\n  \"active\": true\n}"
+							"raw": "{\n  \"code\": \"L12-{{$timestamp}}\",\n  \"nom\": \"Ligne test Postman\",\n  \"description\": \"Parcours guidé\",\n  \"active\": true\n}"
 						}
 					},
 					"event": [
@@ -703,7 +711,7 @@
 						"url": "{{baseUrl}}/api/notifications/send",
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"canal\": \"MOBILE_PUSH\",\n  \"sujet\": \"Retard L12\",\n  \"corps\": \"Retard 10 min\",\n  \"metadata\": { \"missionId\": \"{{missionId}}\" }\n}"
+							"raw": "{\n  \"notificationId\": \"G4-POSTMAN-001\",\n  \"sourceService\": \"COORDINATION\",\n  \"eventType\": \"DELAY_ALERT\",\n  \"channel\": \"EMAIL\",\n  \"recipient\": { \"userId\": \"{{recipientUserId}}\", \"email\": \"{{recipientEmail}}\" },\n  \"metadata\": { \"lineId\": \"L12\", \"reason\": \"RETARD_SIGNIFICATIF\", \"variables\": { \"vehiculeId\": \"{{vehiculeId}}\", \"valeur\": \"12\", \"arret\": \"Gare Sud\" } }\n}"
 						}
 					}
 				},
@@ -1530,7 +1538,7 @@
 						"url": "{{baseUrl}}/api/notifications/send",
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"notificationId\": \"G4-POSTMAN-001\",\n  \"sourceService\": \"G4\",\n  \"eventType\": \"RETARD\",\n  \"channel\": \"EMAIL\",\n  \"recipient\": { \"userId\": \"voyageur-demo\", \"email\": \"test@sgitu.local\" },\n  \"metadata\": { \"lineId\": \"L12\", \"reason\": \"Retard test Postman\", \"variables\": { \"missionId\": \"{{missionId}}\" } }\n}"
+							"raw": "{\n  \"notificationId\": \"G4-POSTMAN-001\",\n  \"sourceService\": \"COORDINATION\",\n  \"eventType\": \"DELAY_ALERT\",\n  \"channel\": \"EMAIL\",\n  \"recipient\": { \"userId\": \"{{recipientUserId}}\", \"email\": \"{{recipientEmail}}\" },\n  \"metadata\": { \"lineId\": \"L12\", \"reason\": \"RETARD_SIGNIFICATIF\", \"variables\": { \"vehiculeId\": \"{{vehiculeId}}\", \"valeur\": \"12\", \"arret\": \"Gare Sud\" } }\n}"
 						},
 						"description": "202 ACCEPTED ou 202 DEGRADED si G5 arrêté"
 					},
@@ -1815,7 +1823,7 @@
 						"url": "{{baseUrl}}/api/notifications/send",
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"notificationId\": \"CHAOS-001\",\n  \"sourceService\": \"G4\",\n  \"eventType\": \"RETARD\",\n  \"channel\": \"EMAIL\",\n  \"recipient\": { \"email\": \"test@sgitu.local\" }\n}"
+							"raw": "{\n  \"notificationId\": \"CHAOS-001\",\n  \"sourceService\": \"COORDINATION\",\n  \"eventType\": \"DELAY_ALERT\",\n  \"channel\": \"EMAIL\",\n  \"recipient\": { \"userId\": \"{{recipientUserId}}\", \"email\": \"{{recipientEmail}}\" },\n  \"metadata\": { \"lineId\": \"L12\", \"reason\": \"RETARD_SIGNIFICATIF\", \"variables\": { \"vehiculeId\": \"{{vehiculeId}}\", \"valeur\": \"12\", \"arret\": \"Gare Sud\" } }\n}"
 						}
 					}
 				}

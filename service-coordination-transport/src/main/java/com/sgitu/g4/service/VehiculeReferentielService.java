@@ -9,7 +9,9 @@ import com.sgitu.g4.entity.VehiculeReferentiel;
 import com.sgitu.g4.exception.BadRequestException;
 import com.sgitu.g4.integration.G7VehicleClient;
 import com.sgitu.g4.mapper.EntityMapper;
+import com.sgitu.g4.entity.StatutMission;
 import com.sgitu.g4.repository.AffectationRepository;
+import com.sgitu.g4.repository.MissionRepository;
 import com.sgitu.g4.repository.VehiculeReferentielRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,7 @@ public class VehiculeReferentielService {
 
 	private final VehiculeReferentielRepository vehiculeReferentielRepository;
 	private final AffectationRepository affectationRepository;
+	private final MissionRepository missionRepository;
 	private final G7VehicleClient g7VehicleClient;
 	private final IntegrationProperties integrationProperties;
 	private final SupervisionLogService supervisionLogService;
@@ -132,6 +135,41 @@ public class VehiculeReferentielService {
 		ref.setDisponiblePourAffectation(false);
 		ref.setLigneAffecteeId(ligneId);
 		vehiculeReferentielRepository.save(ref);
+	}
+
+	/**
+	 * Remet le véhicule DISPONIBLE chez G7 et dans le référentiel G4 si plus aucune affectation ACTIF
+	 * ni mission EN_COURS sur ce véhicule (contrat G4↔G7 § fin d'affectation).
+	 */
+	@Transactional
+	public void tryReleaseVehicleIfIdle(String vehiculeIdRaw) {
+		if (!integrationProperties.isG7FlowEnabled()) {
+			return;
+		}
+		String vehiculeId = normalizeVehiculeId(vehiculeIdRaw);
+		if (affectationRepository.existsByVehiculeIdAndStatut(vehiculeId, StatutAffectation.ACTIF)) {
+			log.debug("Pas de libération {} : affectation ACTIF encore présente", vehiculeId);
+			return;
+		}
+		if (missionRepository.existsByVehiculeIdAndStatut(vehiculeId, StatutMission.EN_COURS)) {
+			log.debug("Pas de libération {} : mission EN_COURS encore présente", vehiculeId);
+			return;
+		}
+		g7VehicleClient.notifyDisponible(vehiculeId);
+		markDisponibleAfterRelease(vehiculeId);
+		supervisionLogService.add("INFO", "AFFECTATION",
+				"Véhicule " + vehiculeId + " libéré → G7 DISPONIBLE");
+	}
+
+	@Transactional
+	public void markDisponibleAfterRelease(String vehiculeIdRaw) {
+		String vehiculeId = normalizeVehiculeId(vehiculeIdRaw);
+		vehiculeReferentielRepository.findById(vehiculeId).ifPresent(ref -> {
+			ref.setStatutG7(StatutVehiculeG7.DISPONIBLE);
+			ref.setDisponiblePourAffectation(true);
+			ref.setLigneAffecteeId(null);
+			vehiculeReferentielRepository.save(ref);
+		});
 	}
 
 	public static String normalizeVehiculeId(String vehiculeIdRaw) {
