@@ -24,7 +24,6 @@ public class VehiculeService {
 
     private final VehiculeRepository vehiculeRepository;
     private final KafkaProducerService kafkaProducerService;
-    private final com.g7suivivehicules.kafka.KafkaProducerService kafkaProducerService;
     private final G5NotificationService g5NotificationService;
 
     @Transactional
@@ -54,7 +53,6 @@ public class VehiculeService {
                 .build();
         kafkaProducerService.publierVehiculeEnregistre(event);
 
-        return mapToResponse(saved);
         // Notification G5 pour le conducteur/admin
         g5NotificationService.notifierVehiculeEnregistre(response);
 

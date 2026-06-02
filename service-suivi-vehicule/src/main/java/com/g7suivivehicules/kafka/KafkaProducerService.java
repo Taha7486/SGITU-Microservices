@@ -55,7 +55,7 @@ public class KafkaProducerService {
         log.info("[KafkaProducer] Envoi vehicle.registered vers '{}' — vehiculeId={} immat={}",
                 topicVehicleRegistered, event.getVehiculeId(), event.getImmatriculation());
 
-        ListenableFuture<SendResult<String, Object>> future = kafkaTemplate.send(
+        java.util.concurrent.CompletableFuture<SendResult<String, Object>> future = kafkaTemplate.send(
                 topicVehicleRegistered,
                 event.getVehiculeId().toString(),
                 event
