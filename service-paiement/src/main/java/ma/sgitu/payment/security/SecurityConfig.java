@@ -3,6 +3,7 @@ package ma.sgitu.payment.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -30,6 +31,11 @@ public class SecurityConfig {
                                 "/health",
                                 "/actuator/**"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/payments").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/payments/*/refund").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/payments/*/cancel").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/test-cards").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/test-mobile-money-accounts").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
