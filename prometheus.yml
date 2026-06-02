@@ -25,11 +25,16 @@ scrape_configs:
 
   # ---------------------------------------------------------------
   #  G4 — Coordination des transports (Groupe G4)
+  #  hostname = docker-compose racine : g4-coordination (service g4-coordination)
   # ---------------------------------------------------------------
   - job_name: 'g4-coordination'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
     static_configs:
       - targets: ['g4-coordination:8084']
-    metrics_path: '/actuator/prometheus'
+        labels:
+          group: G4
+          service: coordination-transport
 
   # ---------------------------------------------------------------
   #  G5 — Service de Notifications (SGITU)
@@ -59,10 +64,18 @@ scrape_configs:
   # ---------------------------------------------------------------
   #  G8 — (ajoutez votre bloc ici)
   # ---------------------------------------------------------------
+  - job_name: 'g8-analytics'
+    static_configs:
+      - targets: ['g8-analytics-service:8088']
+    metrics_path: '/actuator/prometheus'
 
   # ---------------------------------------------------------------
-  #  G9 — (ajoutez votre bloc ici)
+  #  G9 — Service Gestion des Incidents (SGITU)
   # ---------------------------------------------------------------
+  - job_name: 'g9-gestion-incidents'
+    static_configs:
+      - targets: ['service-gestion-incidents:8089']
+    metrics_path: '/api/incidents/actuator/prometheus'
 
   # ---------------------------------------------------------------
   #  G10 — (ajoutez votre bloc ici)
