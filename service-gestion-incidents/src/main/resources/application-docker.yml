@@ -1,15 +1,13 @@
+jwt:
+  secret: ${JWT_SECRET:SGITU_G3_JWT_SECRET_KEY_CHANGE_ME_IN_PRODUCTION_256BITS!!}
+  
 spring:
   datasource:
     url: ${DB_URL:jdbc:mysql://mysql-db:3306/sgitu_incidents?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
-
-jwt:
-  secret: ${JWT_SECRET:SGITU_G3_JWT_SECRET_KEY_CHANGE_ME_IN_PRODUCTION_256BITS!!}
-  
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
-
   cloud:
     openfeign:
       client:

@@ -554,6 +554,7 @@ services:
       - g7-service
       - user-service
       - g8-analytics-service
+      - g9-service
 
   grafana:
     image: grafana/grafana:latest
