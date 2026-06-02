@@ -3,6 +3,7 @@ package com.sgitu.g4.mapper;
 import com.sgitu.g4.dto.AffectationResponse;
 import com.sgitu.g4.dto.ArretResponse;
 import com.sgitu.g4.dto.CoordinationEventResponse;
+import com.sgitu.g4.dto.IncidentImpactResponse;
 import com.sgitu.g4.dto.HoraireResponse;
 import com.sgitu.g4.dto.LigneResponse;
 import com.sgitu.g4.dto.MissionResponse;
@@ -11,11 +12,14 @@ import com.sgitu.g4.dto.TrajetResponse;
 import com.sgitu.g4.entity.AffectationVehiculeLigne;
 import com.sgitu.g4.entity.Arret;
 import com.sgitu.g4.entity.CoordinationEventEntity;
+import com.sgitu.g4.entity.MissionIncidentImpact;
 import com.sgitu.g4.entity.Horaire;
 import com.sgitu.g4.entity.Ligne;
 import com.sgitu.g4.entity.Mission;
 import com.sgitu.g4.entity.Trajet;
 import com.sgitu.g4.entity.TrajetArret;
+import com.sgitu.g4.entity.VehiculeReferentiel;
+import com.sgitu.g4.dto.VehiculeReferentielResponse;
 
 import java.util.Comparator;
 import java.util.List;
@@ -165,6 +169,40 @@ public final class EntityMapper {
 				.status(e.getStatus())
 				.missionId(e.getMission() != null ? e.getMission().getId() : null)
 				.vehiculeId(e.getVehiculeId())
+				.description(e.getDescription())
+				.payloadJson(e.getPayloadJson())
+				.occurredAt(e.getOccurredAt())
+				.createdAt(e.getCreatedAt())
+				.build();
+	}
+
+	public static VehiculeReferentielResponse toDto(VehiculeReferentiel e) {
+		if (e == null) {
+			return null;
+		}
+		return VehiculeReferentielResponse.builder()
+				.vehiculeId(e.getVehiculeId())
+				.immatriculation(e.getImmatriculation())
+				.typeVehicule(e.getTypeVehicule())
+				.statutG7(e.getStatutG7())
+				.disponiblePourAffectation(e.isDisponiblePourAffectation())
+				.ligneAffecteeId(e.getLigneAffecteeId())
+				.registeredAt(e.getRegisteredAt())
+				.updatedAt(e.getUpdatedAt())
+				.build();
+	}
+
+	public static IncidentImpactResponse toDto(MissionIncidentImpact e) {
+		if (e == null) {
+			return null;
+		}
+		return IncidentImpactResponse.builder()
+				.id(e.getId())
+				.missionId(e.getMission() != null ? e.getMission().getId() : null)
+				.g9ReferenceIncident(e.getG9ReferenceIncident())
+				.vehiculeId(e.getVehiculeId())
+				.g9Type(e.getG9Type())
+				.g9Statut(e.getG9Statut())
 				.description(e.getDescription())
 				.payloadJson(e.getPayloadJson())
 				.occurredAt(e.getOccurredAt())

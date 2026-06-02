@@ -43,7 +43,9 @@ public class UserController {
             Il est également appelé par G10 lors de l'inscription.
 
             **Rôles disponibles :** ROLE_PASSENGER, ROLE_STUDENT, ROLE_DRIVER,
-            ROLE_STAFF, ROLE_OPERATOR, ROLE_TECHNICIAN, ROLE_ADMIN
+            ROLE_DISPATCHER, ROLE_OPERATOR, ROLE_G4_OPERATOR, ROLE_TECHNICIAN, ROLE_ADMIN,
+            ROLE_G1_ADMIN, ROLE_ADMIN_G2, ROLE_G4_ADMIN, ROLE_G7_ADMIN, ROLE_G9_ADMIN,
+            ROLE_SUPERVISOR, ROLE_SECURITY, ROLE_MEDIC, ROLE_CLEANER
             """,
         security = {}   // public
     )
@@ -103,6 +105,42 @@ public class UserController {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
+    // ── GET /users/roles/{roleName} — Lister les utilisateurs par rôle (Admin / Inter-service) ──
+
+    @Operation(
+        summary = "Récupérer les utilisateurs ayant un rôle spécifique",
+        description = """
+            Retourne la liste des utilisateurs possédant le rôle indiqué.
+            Utilisé notamment par la salle de contrôle pour notifier
+            les intervenants lors d'alertes ou d'escalades.
+            **Réservé aux superviseurs et dispatchers (ROLE_SUPERVISOR, ROLE_DISPATCHER).**
+
+            **Rôles valides :** ROLE_PASSENGER, ROLE_DRIVER, ROLE_DISPATCHER,
+            ROLE_OPERATOR, ROLE_G4_OPERATOR, ROLE_TECHNICIAN, ROLE_ADMIN,
+            ROLE_G1_ADMIN, ROLE_ADMIN_G2, ROLE_G4_ADMIN, ROLE_G7_ADMIN, ROLE_G9_ADMIN,
+            ROLE_SUPERVISOR, ROLE_SECURITY, ROLE_MEDIC, ROLE_CLEANER,
+            ROLE_STUDENT
+            """,
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Liste des utilisateurs retournée avec succès",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                array = @ArraySchema(schema = @Schema(implementation = UserResponseDTO.class)))),
+        @ApiResponse(responseCode = "401", description = "Token JWT absent ou invalide",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ErrorResponseDTO.class))),
+        @ApiResponse(responseCode = "403", description = "Rôle ROLE_SUPERVISOR ou ROLE_DISPATCHER requis",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ErrorResponseDTO.class)))
+    })
+    @GetMapping("/roles/{roleName}")
+    public ResponseEntity<List<UserResponseDTO>> getUsersByRole(
+            @Parameter(description = "Nom du rôle à rechercher", example = "ROLE_DISPATCHER", required = true)
+            @PathVariable String roleName) {
+        return ResponseEntity.ok(userService.getUsersByRole(roleName));
+    }
+
     // ── GET /users/drivers/ids — Lister les IDs des chauffeurs (Inter-service / Authentifié) ──
 
     @Operation(
@@ -121,6 +159,33 @@ public class UserController {
     @GetMapping("/drivers/ids")
     public ResponseEntity<List<Long>> getDriverIds() {
         return ResponseEntity.ok(userService.getDriverIds());
+    }
+
+    // ── GET /users/notification-recipients — Inter-service (G4) ──
+
+    @Operation(
+        summary = "Récupérer les destinataires de notification (inter-service)",
+        description = "Retourne les paires userId/email pour tous les comptes actifs disposant d'un email. Utilisé par G4 pour construire les recipients de G5.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Liste de destinataires retournée avec succès",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = com.sgitu.userservice.dto.NotificationRecipientsResponseDTO.class))),
+        @ApiResponse(responseCode = "401", description = "Token JWT absent ou invalide",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ErrorResponseDTO.class))),
+        @ApiResponse(responseCode = "403", description = "Rôle ROLE_G4_SERVICE requis",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ErrorResponseDTO.class)))
+    })
+    @GetMapping("/notification-recipients")
+    public ResponseEntity<com.sgitu.userservice.dto.NotificationRecipientsResponseDTO> getNotificationRecipients(
+            @Parameter(description = "Numéro de la page (0-based)", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Taille de la page", example = "100")
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(userService.getNotificationRecipients(page, size));
     }
 
     // ── GET /users/{id} — Récupérer un profil (Authentifié) ──
@@ -144,7 +209,7 @@ public class UserController {
                     {"timestamp":"2026-05-08T10:00:00","status":404,"error":"Not Found","message":"Utilisateur introuvable avec l'id : 99","path":"/api/users/99"}
                     """)))
     })
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     public ResponseEntity<UserResponseDTO> getUserById(
             @Parameter(description = "ID de l'utilisateur", example = "1", required = true)
             @PathVariable Long id) {
@@ -166,7 +231,7 @@ public class UserController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                 schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
-    @GetMapping("/{id}/exists")
+    @GetMapping("/{id:\\d+}/exists")
     public ResponseEntity<Map<String, Boolean>> userExists(
             @Parameter(description = "ID de l'utilisateur à vérifier", example = "1", required = true)
             @PathVariable Long id) {
@@ -202,7 +267,7 @@ public class UserController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                 schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
-    @PutMapping("/{id}")
+    @PutMapping("/{id:\\d+}")
     public ResponseEntity<UserResponseDTO> updateUser(
             @Parameter(description = "ID de l'utilisateur à modifier", example = "1", required = true)
             @PathVariable Long id,
@@ -237,7 +302,7 @@ public class UserController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                 schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
-    @PutMapping("/{id}/password")
+    @PutMapping("/{id:\\d+}/password")
     public ResponseEntity<Void> changePassword(
             @Parameter(description = "ID de l'utilisateur", example = "1", required = true)
             @PathVariable Long id,
@@ -266,8 +331,10 @@ public class UserController {
             Remplace l'ensemble des rôles de l'utilisateur par la liste fournie.
             **Réservé aux administrateurs (ROLE_ADMIN).**
 
-            Rôles valides : ROLE_PASSENGER, ROLE_STUDENT, ROLE_DRIVER, ROLE_STAFF,
-            ROLE_OPERATOR, ROLE_TECHNICIAN, ROLE_ADMIN
+            Rôles valides : ROLE_PASSENGER, ROLE_STUDENT, ROLE_DRIVER,
+            ROLE_DISPATCHER, ROLE_OPERATOR, ROLE_G4_OPERATOR, ROLE_TECHNICIAN, ROLE_ADMIN,
+            ROLE_G1_ADMIN, ROLE_ADMIN_G2, ROLE_G4_ADMIN, ROLE_G7_ADMIN, ROLE_G9_ADMIN,
+            ROLE_SUPERVISOR, ROLE_SECURITY, ROLE_MEDIC, ROLE_CLEANER
             """,
         security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -288,7 +355,7 @@ public class UserController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                 schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
-    @PutMapping("/{id}/roles")
+    @PutMapping("/{id:\\d+}/roles")
     public ResponseEntity<UserResponseDTO> updateRoles(
             @Parameter(description = "ID de l'utilisateur", example = "1", required = true)
             @PathVariable Long id,
@@ -329,7 +396,7 @@ public class UserController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                 schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
-    @PutMapping("/{id}/deactivate")
+    @PutMapping("/{id:\\d+}/deactivate")
     public ResponseEntity<UserResponseDTO> deactivateUser(
             @Parameter(description = "ID de l'utilisateur à désactiver", example = "1", required = true)
             @PathVariable Long id) {
@@ -361,7 +428,7 @@ public class UserController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                 schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
-    @PutMapping("/{id}/activate")
+    @PutMapping("/{id:\\d+}/activate")
     public ResponseEntity<UserResponseDTO> activateUser(
             @Parameter(description = "ID de l'utilisateur à réactiver", example = "1", required = true)
             @PathVariable Long id) {
@@ -390,7 +457,7 @@ public class UserController {
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                 schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:\\d+}")
     public ResponseEntity<Void> deleteUser(
             @Parameter(description = "ID de l'utilisateur à supprimer", example = "1", required = true)
             @PathVariable Long id) {
