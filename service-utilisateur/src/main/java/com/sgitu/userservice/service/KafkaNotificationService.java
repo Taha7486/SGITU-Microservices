@@ -20,7 +20,8 @@ import java.time.format.DateTimeFormatter;
  * Service for sending user-related notifications to Kafka (Group 5).
  *
  * Resilience4j Circuit Breaker intercepts Kafka notification sending.
- * If Kafka is down (or simulated DOWN), the fallback method persists the event to PostgreSQL.
+ * If Kafka is down (real outage or Chaos Monkey injected fault), the fallback
+ * method persists the event to PostgreSQL for later retry.
  */
 @Slf4j
 @Service
@@ -30,7 +31,6 @@ public class KafkaNotificationService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final FailedEventRepository failedEventRepository;
-    private final ChaosMonkeyService chaosMonkeyService;
     
     private static final String TOPIC = "user-events";
 
@@ -43,8 +43,6 @@ public class KafkaNotificationService {
     @Async
     @CircuitBreaker(name = "kafkaNotification", fallbackMethod = "sendNotificationFallback")
     public void sendNotification(String eventType, User user) {
-        chaosMonkeyService.checkKafka();
-
         try {
             String username = "User";
             if (user.getProfile() != null) {
@@ -102,6 +100,38 @@ public class KafkaNotificationService {
             log.info("Saved failed WELCOME/deactivation event to database outbox.");
         } catch (Exception ex) {
             log.error("Critical: failed to persist failed event to database!", ex);
+        }
+    }
+
+    /**
+     * Sends email verification code to the user via Kafka.
+     *
+     * @param user The user who needs email verification
+     * @param verificationCode 6-digit verification code
+     */
+    @Async
+    public void sendVerificationEmail(User user, String verificationCode) {
+        try {
+            String username = "User";
+            if (user.getProfile() != null) {
+                username = user.getProfile().getFirstName() + " " + user.getProfile().getLastName();
+            }
+
+            NotificationEventDTO event = NotificationEventDTO.builder()
+                    .eventType("EMAIL_VERIFICATION")
+                    .userId(String.valueOf(user.getId()))
+                    .email(user.getEmail())
+                    .username(username.trim())
+                    .verificationCode(verificationCode)
+                    .timestamp(ZonedDateTime.now(ZoneId.of("UTC"))
+                            .format(DateTimeFormatter.ISO_INSTANT))
+                    .build();
+
+            String jsonPayload = objectMapper.writeValueAsString(event);
+            log.info("Sending verification code via Kafka to: {}", user.getEmail());
+            kafkaTemplate.send(TOPIC, jsonPayload);
+        } catch (Exception e) {
+            log.error("Error sending verification email: {}", e.getMessage());
         }
     }
 }
