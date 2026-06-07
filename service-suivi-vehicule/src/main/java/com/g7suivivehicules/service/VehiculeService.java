@@ -25,6 +25,7 @@ public class VehiculeService {
     private final VehiculeRepository vehiculeRepository;
     private final KafkaProducerService kafkaProducerService;
     private final G5NotificationService g5NotificationService;
+    private final G8AnalyticsMapper g8AnalyticsMapper;
 
     @Transactional
     public VehiculeResponse createVehicule(VehiculeRequest request) {
@@ -89,7 +90,8 @@ public class VehiculeService {
         Vehicule vehicule = vehiculeRepository.findById(id)
                 .orElseThrow(() -> new VehiculeNotFoundException(id));
         vehicule.setStatut(Vehicule.StatutVehicule.HORS_SERVICE);
-        vehiculeRepository.save(vehicule);
+        Vehicule saved = vehiculeRepository.save(vehicule);
+        kafkaProducerService.envoyerStatusG8(g8AnalyticsMapper.toStatusDto(saved, null, 0));
     }
 
     public List<VehiculeResponse> getVehiculesActifs() {
@@ -115,7 +117,9 @@ public class VehiculeService {
         Vehicule vehicule = vehiculeRepository.findById(id)
                 .orElseThrow(() -> new VehiculeNotFoundException(id));
         vehicule.setStatut(statut);
-        return mapToResponse(vehiculeRepository.save(vehicule));
+        Vehicule saved = vehiculeRepository.save(vehicule);
+        kafkaProducerService.envoyerStatusG8(g8AnalyticsMapper.toStatusDto(saved, null, 0));
+        return mapToResponse(saved);
     }
 
     private VehiculeResponse mapToResponse(Vehicule vehicule) {

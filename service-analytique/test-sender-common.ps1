@@ -84,9 +84,10 @@ function Wait-HttpOk {
 function Invoke-MongoEval {
     param([string]$Eval)
 
-    $output = & docker exec g8-mongo mongosh g8_analytics --quiet --eval $Eval
+    # Pass eval as one argument; PowerShell must not strip JS string quotes.
+    $output = docker exec g8-mongo mongosh g8_analytics --quiet --eval "$Eval" 2>&1
     if ($LASTEXITCODE -ne 0) {
-        throw "Mongo eval failed: $Eval"
+        throw "Mongo eval failed: $Eval`n$output"
     }
     return (($output | Out-String).Trim())
 }
@@ -139,7 +140,8 @@ function New-Hs256Jwt {
     param(
         [string]$Secret,
         [string]$Subject = "g8-stage4-test",
-        [string[]]$Roles = @("ROLE_ADMIN", "ROLE_SUPERVISOR", "ROLE_DISPATCHER", "ADMIN")
+        [string[]]$Roles = @("ROLE_ADMIN", "ROLE_SUPERVISOR", "ROLE_DISPATCHER", "ADMIN"),
+        [string]$Email = $null
     )
 
     $header = @{ alg = "HS256"; typ = "JWT" } | ConvertTo-Json -Compress
@@ -149,7 +151,11 @@ function New-Hs256Jwt {
         roles = $Roles
         iat = $now.ToUnixTimeSeconds()
         exp = $now.AddHours(2).ToUnixTimeSeconds()
-    } | ConvertTo-Json -Compress
+    }
+    if ($Email) {
+        $payload.email = $Email
+    }
+    $payload = $payload | ConvertTo-Json -Compress
 
     $header64 = ConvertTo-Base64Url ([Text.Encoding]::UTF8.GetBytes($header))
     $payload64 = ConvertTo-Base64Url ([Text.Encoding]::UTF8.GetBytes($payload))
@@ -198,6 +204,69 @@ function Get-G8AuthHeaders {
 function Invoke-G8Run {
     param([hashtable]$Headers)
     Invoke-WebRequest -Uri "http://localhost:8088/test/run" -Method Get -Headers $Headers -UseBasicParsing -TimeoutSec 90 | Out-Null
+}
+
+function Get-G3VerificationCode {
+    param(
+        [string]$Email,
+        [int]$Timeout = 30
+    )
+
+    $escapedEmail = [regex]::Escape($Email)
+    $pattern = "VERIFICATION CODE FOR $escapedEmail\s*:\s*(\d{6})"
+    $deadline = (Get-Date).AddSeconds($Timeout)
+    while ((Get-Date) -lt $deadline) {
+        $logs = (& docker logs g3-user-service 2>&1 | Out-String)
+        if ($logs -match $pattern) {
+            return $Matches[1]
+        }
+        Start-Sleep -Seconds 2
+    }
+    return $null
+}
+
+function New-G3VerifiedPassenger {
+    param(
+        [string]$RunId,
+        [int]$TimeoutSeconds = 120
+    )
+
+    $g3BaseUrl = "http://localhost:8083/api"
+    $email = "g8-g3-passenger-$RunId@example.com"
+    $userId = $null
+
+    if (-not (Wait-ContainerHealthy -ContainerName "g3-user-service" -Timeout $TimeoutSeconds)) {
+        throw "g3-user-service is not ready"
+    }
+
+    $body = @{
+        email = $email
+        password = "Secret123!"
+        role = "ROLE_PASSENGER"
+        profile = @{
+            firstName = "G8"
+            lastName = "Passenger"
+            phone = "0600000000"
+            address = "SGITU integration test"
+            birthDate = "1998-01-01"
+        }
+    } | ConvertTo-Json -Compress -Depth 10
+
+    $created = Invoke-RestMethod -Uri "$g3BaseUrl/users" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 30
+    $userId = "$($created.id)"
+
+    $verificationCode = Get-G3VerificationCode -Email $email -Timeout 30
+    if (-not $verificationCode) {
+        throw "Could not find G3 verification code in logs for $email"
+    }
+
+    $verifyBody = @{ email = $email; code = $verificationCode } | ConvertTo-Json -Compress
+    Invoke-RestMethod -Uri "$g3BaseUrl/auth/verify-email" -Method Post -Body $verifyBody -ContentType "application/json" -TimeoutSec 30 | Out-Null
+
+    return @{
+        UserId = $userId
+        Email = $email
+    }
 }
 
 function Complete-Script {

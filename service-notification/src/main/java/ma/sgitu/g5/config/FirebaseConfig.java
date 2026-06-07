@@ -1,5 +1,6 @@
 package ma.sgitu.g5.config;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
@@ -27,7 +28,12 @@ public class FirebaseConfig {
                 log.warn("[FCM] FIREBASE_CREDENTIALS_PATH non defini. FCM desactive.");
                 return;
             }
-            try (FileInputStream serviceAccount = new FileInputStream(credentialsPath)) {
+            File credentialsFile = new File(credentialsPath);
+            if (!credentialsFile.isFile()) {
+                log.warn("[FCM] Credentials path is not a readable file ({}). FCM desactive.", credentialsPath);
+                return;
+            }
+            try (FileInputStream serviceAccount = new FileInputStream(credentialsFile)) {
                 FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(serviceAccount))
                     .build();

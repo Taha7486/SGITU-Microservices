@@ -29,11 +29,11 @@ public interface NotificationMapper {
         @Mapping(target = "email",           source = "recipient.email"),
         @Mapping(target = "phone",           source = "recipient.phone"),
         @Mapping(target = "deviceToken",     source = "recipient.deviceToken"),
-        @Mapping(target = "recipient",       ignore = true),   // résolu manuellement
+        @Mapping(target = "recipient",       ignore = true),
         @Mapping(target = "status",          constant = "PENDING"),
-        @Mapping(target = "type",            ignore = true),   // converti via @AfterMapping
-        @Mapping(target = "subject",         ignore = true),   // hydraté par TemplateService
-        @Mapping(target = "content",         ignore = true),   // hydraté par TemplateService
+        @Mapping(target = "type",            ignore = true),
+        @Mapping(target = "subject",         ignore = true),
+        @Mapping(target = "content",         ignore = true),
         @Mapping(target = "provider",        ignore = true),
         @Mapping(target = "retryCount",      ignore = true),
         @Mapping(target = "createdAt",       ignore = true),
@@ -41,15 +41,14 @@ public interface NotificationMapper {
     })
     Notification toEntity(NotificationRequestDTO dto);
 
-    /**
-     * Résout NotificationType à partir du channel string après le mapping principal.
-     */
     @AfterMapping
-    default void resolveType(@MappingTarget Notification entity, NotificationRequestDTO dto) {
-        try {
-            entity.setType(NotificationType.valueOf(dto.getChannel().toUpperCase()));
-        } catch (Exception e) {
-            entity.setType(NotificationType.EMAIL);
+    default void resolveDerivedFields(@MappingTarget Notification entity, NotificationRequestDTO dto) {
+        if (entity.getType() == null && dto.getChannel() != null) {
+            try {
+                entity.setType(NotificationType.valueOf(dto.getChannel().toUpperCase()));
+            } catch (IllegalArgumentException ex) {
+                entity.setType(NotificationType.EMAIL);
+            }
         }
         entity.setCreatedAt(LocalDateTime.now());
         if (entity.getStatus() == null) {
@@ -58,7 +57,6 @@ public interface NotificationMapper {
         if (entity.getPriority() == null) {
             entity.setPriority("NORMAL");
         }
-        // Résolution du champ recipient (string simple)
         if (dto.getRecipient() != null) {
             String recipientStr = switch (dto.getChannel()) {
                 case "EMAIL" -> dto.getRecipient().getEmail();

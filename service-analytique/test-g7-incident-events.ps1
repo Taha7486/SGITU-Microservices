@@ -1,6 +1,9 @@
-# SGITU Incident Management -> G8 integration test.
-# Start G8, then start service-gestion-incidents separately, then run:
-#   powershell -ExecutionPolicy Bypass -File .\service-analytique\test-g7-incident-events.ps1
+# SGITU Incident Management (G9) -> G8 integration test.
+# Prerequisites in root compose:
+#   kafka, g8-analytics-service, g9-service (service-gestion-incidents), db-g9
+#
+# G9 publishes to incident.analytique.topic when an incident is annule or cloture,
+# not on the initial signalement. This script signals then cancels to trigger G8.
 
 param([int]$TimeoutSeconds = 120)
 
@@ -14,62 +17,95 @@ $secret = $envValues["JWT_SECRET"]
 if (-not $secret) {
     $secret = "sgitu_g8_secret_key_2025_very_long_secret_for_analytics"
 }
-$incidentHeaders = @{
-    Authorization = "Bearer $(New-Hs256Jwt -Secret $secret -Subject "g8-incident-stage4" -Roles @("ROLE_PASSENGER","ROLE_SUPERVISOR","ROLE_DISPATCHER"))"
-    "X-User-Id" = "9001"
-    "X-User-Role" = "ROLE_PASSENGER"
-}
 
 $runId = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 $baseUrl = "http://localhost:8089/api/incidents"
 $topic = "incident.analytique.topic"
+$probeText = "G8 Stage 4 analytics incident probe $runId"
 
 Write-Host "SGITU Incident Management -> G8 integration test" -ForegroundColor Yellow
-Write-Host "This script assumes G8 is running from the root compose and service-gestion-incidents is running separately on localhost:8089."
+Write-Host "Requires root compose G8 + G9 (service-gestion-incidents on localhost:8089)."
 
 Write-Step "Service readiness"
 $checks = [ordered]@{
     "sgitu-kafka" = "Kafka"
     "g8-mongo" = "G8 Mongo"
     "g8-analytics-service" = "G8 Analytics"
+    "service-gestion-incidents" = "G9 incident service"
 }
 foreach ($container in $checks.Keys) {
     Add-Result "$($checks[$container]) container is ready" (Wait-ContainerHealthy -ContainerName $container -Timeout $TimeoutSeconds) $container
 }
 Add-Result "G8 health endpoint is reachable" (Wait-HttpOk -Url "http://localhost:8088/actuator/health" -Timeout $TimeoutSeconds)
+Add-Result "G9 health endpoint is reachable" (Wait-HttpOk -Url "http://localhost:8089/api/incidents/actuator/health" -Timeout $TimeoutSeconds)
+
+$passengerHeaders = @{
+    Authorization = "Bearer $(New-Hs256Jwt -Secret $secret -Subject "g8-incident-passenger-$runId" -Roles @("ROLE_PASSENGER"))"
+    "X-User-Id" = "9001"
+    "X-User-Role" = "ROLE_PASSENGER"
+}
+$supervisorHeaders = @{
+    Authorization = "Bearer $(New-Hs256Jwt -Secret $secret -Subject "g8-incident-supervisor-$runId" -Roles @("ROLE_SUPERVISOR"))"
+    "X-User-Id" = "9002"
+    "X-User-Role" = "ROLE_SUPERVISOR"
+}
 
 Write-Step "Trigger a real incident action"
 $incidentId = $null
+$incidentReference = $null
 try {
     $incidentBody = @{
         type = "ACCIDENT"
-        description = "G8 Stage 4 analytics incident probe $runId"
+        description = $probeText
         dateIncident = ([DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ss"))
         latitude = 33.5731
         longitude = -7.5898
         vehiculeId = "VEH-G8-$runId"
         ligneTransport = "L-STAGE4"
         preuves = @()
-        role = "ROLE_PASSENGER"
     } | ConvertTo-Json -Depth 10 -Compress
 
-    $incident = Invoke-RestMethod -Uri "$baseUrl/signaler" -Method Post -ContentType "application/json" -Headers $incidentHeaders -Body $incidentBody -TimeoutSec 45
-    $incidentId = "$($incident.id)"
-    if ([string]::IsNullOrWhiteSpace($incidentId)) {
-        $incidentId = "$($incident.incidentId)"
-    }
+    $incident = Invoke-RestMethod -Uri "$baseUrl/signaler" -Method Post -ContentType "application/json" -Headers $passengerHeaders -Body $incidentBody -TimeoutSec 45
+    $incidentId = "$($incident.incidentId)"
+    $incidentReference = "$($incident.reference)"
     Add-Result "Incident signalement endpoint was called" (-not [string]::IsNullOrWhiteSpace($incidentId)) ($incident | ConvertTo-Json -Compress -Depth 8)
 } catch {
     Add-Result "Incident signalement endpoint was called" $false $_.Exception.Message
 }
 
-Write-Step "Verify Incident -> Kafka -> G8"
-$rawKafka = Read-KafkaTopicQuiet -Topic $topic -MaxMessages 80 -TimeoutMs 8000
-$eventPublished = ($incidentId -and $rawKafka.Text -match [regex]::Escape($incidentId)) -or ($rawKafka.Text -match [regex]::Escape("G8 Stage 4 analytics incident probe $runId"))
-Add-Result "Incident service published to $topic" $eventPublished "incidentId=$incidentId"
+Write-Step "Close the incident path to trigger G8 analytique publish"
+$g9Published = $false
+if ($incidentId) {
+    try {
+        $cancelBody = @{ motif = "G8 integration test cancellation $runId" } | ConvertTo-Json -Compress
+        Invoke-RestMethod -Uri "$baseUrl/$incidentId/annuler" -Method Put -ContentType "application/json" -Headers $supervisorHeaders -Body $cancelBody -TimeoutSec 45 | Out-Null
+        Add-Result "Incident cancellation triggers G9 analytique publish" $true "incidentId=$incidentId reference=$incidentReference"
+        $g9Published = $true
+    } catch {
+        Add-Result "Incident cancellation triggers G9 analytique publish" $false $_.Exception.Message
+    }
+} else {
+    Add-Result "Incident cancellation triggers G9 analytique publish" $false "No incidentId from signalement"
+}
 
-$g8Stored = Wait-MongoCondition "db.incoming_events.countDocuments({sourceType:'INCIDENT', `$or:[{'payload.incidentId':'$incidentId'},{'payload.id':'$incidentId'},{'payload.description':/G8 Stage 4 analytics incident probe $runId/}]})" { param($value) [int]$value -gt 0 } 75
-Add-Result "G8 stored the incident event" $g8Stored "incidentId=$incidentId"
+Write-Step "Verify Incident -> Kafka -> G8"
+$rawKafka = Read-KafkaTopicQuiet -Topic $topic -MaxMessages 120 -TimeoutMs 10000
+$eventPublished = $false
+if ($incidentReference -and $rawKafka.Text -match [regex]::Escape($incidentReference)) {
+    $eventPublished = $true
+} elseif ($rawKafka.Text -match [regex]::Escape($probeText)) {
+    $eventPublished = $true
+} elseif ($incidentId -and $rawKafka.Text -match [regex]::Escape($incidentId)) {
+    $eventPublished = $true
+}
+Add-Result "Incident service published to $topic" $eventPublished "incidentId=$incidentId reference=$incidentReference"
+
+$mongoEval = "db.incoming_events.countDocuments({sourceType:'INCIDENT', `$or:[{'payload.reference':'$incidentReference'},{'payload.incidentId':'$incidentReference'},{'payload.description':/$([regex]::Escape($probeText))/}]})"
+$g8Stored = $false
+if ($incidentReference -or $probeText) {
+    $g8Stored = Wait-MongoCondition $mongoEval { param($value) [int]$value -gt 0 } 75
+}
+Add-Result "G8 stored the incident event" $g8Stored "incidentId=$incidentId reference=$incidentReference"
 
 Write-Step "Run G8 analytics"
 try {
@@ -93,15 +129,19 @@ try {
 }
 
 Write-Step "Diagnosis"
-if (-not $eventPublished) {
-    Write-Host "[DIAGNOSIS] The incident endpoint did not produce a matching incident.analytique.topic event. Check service-gestion-incidents Kafka bootstrap; from host it should use localhost:29093, from the compose network kafka:9092." -ForegroundColor Yellow
+if (-not $g9Published) {
+    Write-Host "[DIAGNOSIS] G9 signalement/cancellation failed. Start g9-service + db-g9 and verify JWT_SECRET matches the container." -ForegroundColor Yellow
+} elseif (-not $eventPublished) {
+    Write-Host "[DIAGNOSIS] G9 cancelled the incident but nothing appeared on $topic. Check service-gestion-incidents logs and KAFKA_BOOTSTRAP_SERVERS=kafka:9092." -ForegroundColor Yellow
 } elseif (-not $g8Stored) {
-    Write-Host "[DIAGNOSIS] Incident service published, but G8 did not persist. Check payload field names and G8 incident consumer logs." -ForegroundColor Yellow
+    Write-Host "[DIAGNOSIS] G9 published, but G8 did not persist. Check G8 incident consumer logs and payload field mapping (reference/description)." -ForegroundColor Yellow
 } else {
-    Write-Host "[OK] Incident service published and G8 persisted the event." -ForegroundColor Green
+    Write-Host "[OK] G9 cancellation published analytique data and G8 persisted the event." -ForegroundColor Green
 }
 
 Complete-Script -UsefulLogs @(
+    "docker logs service-gestion-incidents --tail=150",
     "docker logs g8-analytics-service --tail=150",
+    "docker exec sgitu-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic incident.analytique.topic --from-beginning --max-messages 5 --timeout-ms 8000",
     "docker exec sgitu-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --describe --group g8-analytics-group"
 )

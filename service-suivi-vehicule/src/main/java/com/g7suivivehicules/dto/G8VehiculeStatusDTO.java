@@ -19,8 +19,11 @@ public class G8VehiculeStatusDTO {
     @Schema(description = "Horodatage de l'événement (ISO-8601)", example = "2026-05-03T11:00:00Z")
     private String timestamp;
 
-    @Schema(description = "Identifiant du véhicule (immatriculation)", example = "BUS_404")
+    @Schema(description = "Identifiant du véhicule", example = "9b977bd1-f2c2-4c20-b3cb-fe697221ed7b")
     private String vehicleId;
+
+    @Schema(description = "Ligne de transport", example = "L-STAGE4")
+    private String line;
 
     @Schema(description = "Statut actuel du véhicule", example = "in_service", allowableValues = {"in_service", "out_of_service"})
     private String status;

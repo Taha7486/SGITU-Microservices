@@ -2,6 +2,10 @@
 # Run after starting G8 and G3 manually:
 #   powershell -ExecutionPolicy Bypass -File .\service-analytique\test-g3-user-events.ps1
 #   powershell -ExecutionPolicy Bypass -File .\test-g3-user-events.ps1
+#
+# G3 publishes to g8-user-events only after email verification (or admin activate/deactivate),
+# not on POST /users. This script creates a user, reads the 6-digit code from G3 logs,
+# calls POST /auth/verify-email, then checks Kafka and G8 Mongo.
 
 param(
     [int]$TimeoutSeconds = 120
@@ -132,6 +136,25 @@ function Read-KafkaTopicQuiet {
     }
 }
 
+function Get-G3VerificationCode {
+    param(
+        [string]$Email,
+        [int]$Timeout = 30
+    )
+
+    $escapedEmail = [regex]::Escape($Email)
+    $pattern = "VERIFICATION CODE FOR $escapedEmail\s*:\s*(\d{6})"
+    $deadline = (Get-Date).AddSeconds($Timeout)
+    while ((Get-Date) -lt $deadline) {
+        $logs = (& docker logs g3-user-service 2>&1 | Out-String)
+        if ($logs -match $pattern) {
+            return $Matches[1]
+        }
+        Start-Sleep -Seconds 2
+    }
+    return $null
+}
+
 $serviceDir = $PSScriptRoot
 $repoRoot = Resolve-Path (Join-Path $serviceDir "..")
 if (-not (Test-Path (Join-Path $repoRoot "docker-compose.yml"))) {
@@ -167,6 +190,7 @@ Add-Result "G3 health endpoint is reachable" $g3Ready "$g3BaseUrl/actuator/healt
 Write-Step "Create a real G3 user"
 $email = "g8-g3-$runId@example.com"
 $createdUserId = $null
+$emailVerified = $false
 try {
     $body = @{
         email = $email
@@ -189,24 +213,51 @@ try {
 }
 
 if ($createdUserId) {
+    Write-Step "Verify email to trigger G8 Kafka publish"
+    $verificationCode = Get-G3VerificationCode -Email $email -Timeout 30
+    Add-Result "G3 verification code found in logs" (-not [string]::IsNullOrWhiteSpace($verificationCode)) "email=$email"
+
+    if ($verificationCode) {
+        try {
+            $verifyBody = @{
+                email = $email
+                code = $verificationCode
+            } | ConvertTo-Json -Compress
+
+            $verifyResponse = Invoke-RestMethod -Uri "$g3BaseUrl/auth/verify-email" -Method Post -Body $verifyBody -ContentType "application/json" -TimeoutSec 30
+            $emailVerified = $true
+            Add-Result "G3 email verification succeeds" $true ($verifyResponse.message)
+        } catch {
+            Add-Result "G3 email verification succeeds" $false $_.Exception.Message
+        }
+    } else {
+        Add-Result "G3 email verification succeeds" $false "No 6-digit code found in g3-user-service logs for $email"
+        Write-Host "[DIAGNOSIS] G3 logs the verification code on user creation. Check: docker logs g3-user-service --tail=50 | Select-String 'VERIFICATION CODE FOR'" -ForegroundColor Yellow
+    }
+}
+
+if ($createdUserId -and $emailVerified) {
     Write-Step "Verify G3 -> Kafka -> G8"
-    $g8Ingested = Wait-MongoCondition "db.incoming_events.countDocuments({'payload.userId':'$createdUserId'})" { param($value) [int]$value -gt 0 } 75
-    Add-Result "G8 stored the G3 user event" $g8Ingested "createdUserId=$createdUserId"
+    $mongoFilter = "{'payload.userId':'$createdUserId','payload.action':'active'}"
+    $g8Ingested = Wait-MongoCondition "db.incoming_events.countDocuments($mongoFilter)" { param($value) [int]$value -gt 0 } 75
+    Add-Result "G8 stored the G3 user event" $g8Ingested "createdUserId=$createdUserId action=active"
 
     if ($g8Ingested) {
-        Add-Result "G3 user event path is end-to-end" $true "G3 create -> g8-user-events -> G8 Mongo"
-        Write-Host "[OK] G3 produced the user event and G8 consumed it." -ForegroundColor Green
+        Add-Result "G3 user event path is end-to-end" $true "G3 verify-email -> g8-user-events -> G8 Mongo"
+        Write-Host "[OK] G3 published the active user event and G8 consumed it." -ForegroundColor Green
     } else {
-        Write-Host "[INFO] G8 did not store the created user event yet; checking Kafka topic quietly for diagnosis." -ForegroundColor Yellow
+        Write-Host "[INFO] G8 did not store the verified user event yet; checking Kafka topic quietly for diagnosis." -ForegroundColor Yellow
         $g3Published = $false
         $matchedPayload = ""
         $deadline = (Get-Date).AddSeconds(45)
         while ((Get-Date) -lt $deadline -and -not $g3Published) {
             $topicResult = Read-KafkaTopicQuiet -Topic "g8-user-events" -MaxMessages 40 -TimeoutMs 5000
-            $text = $topicResult.Text
-            if ($text -match "`"userId`"\s*:\s*`"$createdUserId`"") {
+            $matchedLine = ($topicResult.Text -split "`r?`n" | Where-Object {
+                $_ -match "`"userId`"\s*:\s*`"$createdUserId`"" -and $_ -match "`"action`"\s*:\s*`"active`""
+            } | Select-Object -First 1)
+            if ($matchedLine) {
                 $g3Published = $true
-                $matchedPayload = ($text -split "`r?`n" | Where-Object { $_ -match "`"userId`"\s*:\s*`"$createdUserId`"" } | Select-Object -First 1)
+                $matchedPayload = $matchedLine
                 break
             }
             Start-Sleep -Seconds 3
@@ -214,9 +265,9 @@ if ($createdUserId) {
 
         Add-Result "G3 published user event to g8-user-events" $g3Published $matchedPayload
         if ($g3Published) {
-            Write-Host "[DIAGNOSIS] G3 is publishing, but G8 did not persist the event. Check G8 consumer logs, topic config, schema validation, and Mongo persistence." -ForegroundColor Yellow
+            Write-Host "[DIAGNOSIS] G3 published after verify-email, but G8 did not persist the event. Check G8 consumer logs, topic config, schema validation, and Mongo persistence." -ForegroundColor Yellow
         } else {
-            Write-Host "[DIAGNOSIS] G3 user creation worked, but no matching Kafka event was found. Check G3 Kafka bootstrap config, events.user-status.topic, and g3-user-service logs." -ForegroundColor Yellow
+            Write-Host "[DIAGNOSIS] G3 verify-email worked, but no matching active event was found on g8-user-events. Check G3 events.user-status.topic, Kafka bootstrap config, and g3-user-service logs." -ForegroundColor Yellow
         }
     }
 }

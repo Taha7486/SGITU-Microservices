@@ -24,6 +24,7 @@ public class PositionService {
         private final VehiculeRepository vehiculeRepository;
         private final AnomalyDetectionService anomalyDetectionService;
         private final com.g7suivivehicules.kafka.KafkaProducerService kafkaProducerService;
+        private final G8AnalyticsMapper g8AnalyticsMapper;
 
         // ================================
         // Enregistrer une position GPS
@@ -48,6 +49,12 @@ public class PositionService {
 
                 // Publier sur Kafka pour G4 (Suivi temps réel)
                 kafkaProducerService.envoyerPositionG4(saved, ligneId);
+
+                vehiculeRepository.findById(request.getVehiculeId()).ifPresent(vehicule -> {
+                        int delayMinutes = (int) Math.min(Integer.MAX_VALUE, calculerRetard(request.getVehiculeId()) / 60);
+                        kafkaProducerService.envoyerStatusG8(
+                                        g8AnalyticsMapper.toStatusDto(vehicule, saved, delayMinutes));
+                });
 
                 // Déclenchement de la détection d'anomalies
                 anomalyDetectionService.detecterAnomalies(saved, null);

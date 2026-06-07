@@ -7,6 +7,7 @@ import ma.sgitu.g5.dto.response.NotificationResponseDTO;
 import ma.sgitu.g5.dto.response.SendResultDTO;
 import ma.sgitu.g5.entity.Notification;
 import ma.sgitu.g5.entity.NotificationStatus;
+import ma.sgitu.g5.entity.NotificationType;
 import ma.sgitu.g5.mapper.NotificationMapper;
 import ma.sgitu.g5.repository.NotificationRepository;
 import ma.sgitu.g5.repository.specification.NotificationSpecification;
@@ -69,12 +70,29 @@ public class NotificationServiceImpl implements INotificationService {
         entity.setNotificationId(notificationId);
         entity.setSubject(subject);
         entity.setContent(message);
+        ensureNotificationType(entity, dto);
         notificationRepository.save(entity);
 
         dispatchAsync(entity, dto, subject, message);
 
         log.info("[G5] Notification QUEUED : {} | channel={}", notificationId, dto.getChannel());
         return buildQueuedResponse(entity);
+    }
+
+    private void ensureNotificationType(Notification entity, NotificationRequestDTO dto) {
+        if (entity.getType() != null) {
+            return;
+        }
+        String channel = dto.getChannel();
+        if (channel == null || channel.isBlank()) {
+            entity.setType(NotificationType.EMAIL);
+            return;
+        }
+        try {
+            entity.setType(NotificationType.valueOf(channel.toUpperCase()));
+        } catch (IllegalArgumentException ex) {
+            entity.setType(NotificationType.EMAIL);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

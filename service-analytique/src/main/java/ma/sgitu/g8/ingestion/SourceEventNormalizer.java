@@ -111,7 +111,7 @@ public class SourceEventNormalizer {
         String candidate = !action.isBlank() ? action : (!type.isBlank() ? type : eventType);
 
         switch (candidate) {
-            case "SOUSCRIPTION_INITIALE", "SUBSCRIPTION_CREATED", "CREATED" -> event.put("action", "created");
+            case "SOUSCRIPTION_INITIALE", "SUBSCRIPTION_CREATED", "CREATED", "ACTIVATED" -> event.put("action", "created");
             case "RENOUVELLEMENT", "SUBSCRIPTION_RENEWED", "RENEWED" -> event.put("action", "renewed");
             case "ANNULATION_CONFIRMEE", "SUBSCRIPTION_CANCELLED", "CANCELLED" -> event.put("action", "cancelled");
             default -> {

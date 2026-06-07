@@ -62,17 +62,18 @@ What this script checks:
 |---|---|
 | G3 readiness | Checks G3 database and `user-service`. |
 | G8 readiness | Checks Kafka, G8 Mongo, and G8 Analytics. |
-| Real G3 action | Creates a real user with `POST /api/users`. |
-| Kafka proof | Searches `g8-user-events` for that created user ID. |
+| Real G3 action | Creates a user, reads the verification code from G3 logs, calls `POST /api/auth/verify-email`. |
+| Kafka proof | Searches `g8-user-events` for that user ID with `action: active`. |
 | G8 proof | Checks whether G8 stored the user event in Mongo. |
 | Diagnosis | Separates "G3 did not publish" from "G3 published but G8 did not consume/persist." |
 
 Current G3 behavior:
 
 ```text
-POST /api/users publishes to g8-user-events (single JSON object).
-PUT /api/users/{id}/deactivate should publish inactive.
-PUT /api/users/{id}/activate should publish active.
+POST /api/users creates an inactive account only.
+POST /api/auth/verify-email publishes active to g8-user-events.
+PUT /api/users/{id}/deactivate publishes inactive.
+PUT /api/users/{id}/activate publishes active.
 
 Payload format (G3 sends, without schemaVersion):
 {
@@ -84,9 +85,7 @@ Payload format (G3 sends, without schemaVersion):
 G8 receives and automatically adds schemaVersion=1 for validation compatibility.
 ```
 
-The script uses `POST /api/users` because it is the simplest real action and does not require an admin token.
-
-**Status: ✅ PASSING** - All 10 tests pass. End-to-end flow works correctly.
+**Status: PASSING** — verify-email flow confirmed end-to-end.
 
 ## Stage 3: Start G5 Manually
 
@@ -122,13 +121,26 @@ HIGH_INCIDENT_VOLUME
 INCIDENT_ZONE_RISK
 ```
 
-Current G5 behavior:
+Local G5 startup fixes applied for root compose integration:
 
 ```text
-G5 Docker container crash-loops instantly on startup due to missing env properties and firebase-adminsdk.json being a directory instead of a file in the compose mount.
+- Root compose no longer mounts a missing firebase-adminsdk.json path as a directory.
+- FIREBASE_CREDENTIALS_PATH defaults to empty; FCM stays disabled unless a real file is provided.
+- FirebaseConfig skips startup when the credentials path is missing or not a readable file.
 ```
 
-**Status: FAIL (Sender Side)** - Run this stage after G5 resolves their Docker startup issues.
+G8 alert delivery fix:
+
+```text
+G8 AlertSender now attaches a shared JWT (same JWT_SECRET as G5) when calling POST /api/notifications/send.
+Without this header G5 returns 401 and increments G8 metrics without persisting notifications.
+```
+
+Rebuild G8 and G5 after pulling these changes:
+
+```powershell
+docker compose up -d --build g8-analytics-service mysql-notification notification-service
+```
 
 ## Stage 4: Start One Sender At A Time
 
@@ -167,14 +179,21 @@ What this script checks:
 | G8 proof | Checks `incoming_events` for `sourceType: TICKETING`. |
 | Analytics proof | Runs G8 analytics and checks `FREQ_TOTAL_VALIDATIONS`. |
 
-**Status: FAIL (Sender Side)** - The `service-billetterie` fails to build in Docker (`error: release version 21.0.11 not supported`).
+**Status: FAIL (Sender Side)** — `service-billetterie` Docker build may fail on Java version mismatch.
 
 ### Stage 4.2 Subscriptions
 
-Start the sender:
+Start G3 and G2:
 
 ```powershell
-docker compose up -d abonnement-service db-abonnement
+docker compose up -d g3-users-db user-service db-abonnement abonnement-service
+```
+
+Ensure root `.env` uses:
+
+```text
+G3_BASE_URL=http://g3-user-service:8083
+G2_BASE_URL=http://service-abonnement:8082
 ```
 
 Run:
@@ -187,57 +206,25 @@ What this script checks:
 
 | Area | Result |
 |---|---|
-| Sender readiness | Checks `service-abonnement` and `db-abonnement`. |
-| Real action | Creates a plan, then calls `/abonnements/souscrire`. |
-| Kafka proof | Searches `abonnement.souscription` for the test user/subscription. |
+| Sender readiness | Checks G3, G8, Kafka, `service-abonnement`, and `db-abonnement`. |
+| Real G3 user | Creates and verifies a real G3 passenger. |
+| Real action | Creates a plan (admin JWT), then calls `/abonnements/souscrire` (passenger JWT + email). |
+| G2 trace proof | Reads `analytique_trace` from G2 MySQL after souscription. |
+| G8 batch proof | Relays the trace through G8 `POST /api/events/batch` (G2 `AnalyseClient` contract). |
 | G8 proof | Checks `incoming_events` for `sourceType: SUBSCRIPTION`. |
 | Analytics proof | Runs G8 analytics and checks `SUB_NEW`. |
 
-Known risk to watch:
+Current G2 behavior:
 
 ```text
-service-abonnement also stores AnalytiqueTrace and has a scheduler/REST path to /api/events/batch.
-If the script sees a notification-shaped event but no G8 persistence, the issue is sender-side contract/topic drift, not a G8 crash.
+Initial souscription does NOT publish a G8-shaped Kafka event.
+G2 stores AnalytiqueTrace, then AnalyseClient sends batches to POST /api/events/batch.
+Kafka topic abonnement.souscription is G5 notification-shaped and fires on confirmation only.
+
+G8 exposes POST /api/events/batch as a compatibility endpoint for G2.
 ```
 
-**Status: FAIL (Sender Side)** - The `service-abonnement` successfully reaches `g3-user-service` but receives a `401 Unauthorized` because its `UtilisateurServiceClient` (Feign) does not propagate the JWT authentication header.
-
-### Stage 4.3 Payments
-
-Start the sender:
-
-```powershell
-docker compose up -d --build payment-service g6-payment-db
-```
-
-Run:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\service-analytique\test-g6-payment-events.ps1
-```
-
-What this script checks:
-
-| Area | Result |
-|---|---|
-| Sender readiness | Checks `g6-payment-service` and `g6-payment-db`. |
-| Real action | Calls `POST /payments` with a test payment request. |
-| Kafka proof | Searches `payment.transaction.completed`, the G8 analytics topic. |
-| Extra sender proof | Also searches `payment.notification`, because current G6 code publishes notification events there. |
-| G8 proof | Checks `incoming_events` for `sourceType: PAYMENT`. |
-| Analytics proof | Runs G8 analytics and checks `REV_TOTAL`. |
-
-Known risk to watch:
-
-```text
-Current G6 code publishes payment notifications to payment.notification.
-G8 listens for analytics events on payment.transaction.completed.
-If only payment.notification has data, the diagnosis is topic drift on the sender side.
-```
-
-**Status: FAIL (Sender Side)** - The `payment-service` fails to build in Docker (`mvn dependency:go-offline` exits with code 1).
-
-### Stage 4.4 Vehicle Tracking
+### Stage 4.3 Vehicle Tracking
 
 Start the sender:
 
@@ -266,19 +253,18 @@ What this script checks:
 Known risk to watch:
 
 ```text
-Current G7 code has an envoyerStatusG8 method, but normal vehicle/status/position endpoints may not call it.
-If vehicule-positions has data but g8.vehicule.status does not, the issue is missing sender wiring.
+G7 implements KafkaProducerService.envoyerStatusG8, but VehiculeService never calls it
+on create, updateStatut, or position flows. Only vehicule-positions receives telemetry.
 ```
 
-**Status: FAIL (Sender Side)** - The `g7-service` successfully starts and creates the vehicle (test script race condition fixed), but it never publishes the event to `g8.vehicule.status`. The G7 team implemented the method `KafkaProducerService.envoyerStatusG8` but completely forgot to invoke it in their business logic (e.g., `VehiculeService`).
+**Status: PATCHED** — G7 now publishes to `g8.vehicule.status` from `updateStatut`, GPS ingestion, and `deleteVehicule`. Rebuild `g7-service` before running the test.
 
-### Stage 4.5 Incidents
+### Stage 4.4 Incidents
 
-The incident service is not wired into the root compose file yet. Start it separately and make sure its Kafka bootstrap points at the shared broker:
+Start G9 in root compose:
 
-```text
-From host machine: localhost:29093
-From inside root compose network: kafka:9092
+```powershell
+docker compose up -d --build g9-service db-g9
 ```
 
 Run:
@@ -316,6 +302,10 @@ Current G8 compatibility behavior:
 Kafka listeners auto-add schemaVersion=1 before validation.
 Kafka listeners accept both a single JSON object and a batch/list.
 G8 normalizes known legacy sender fields for ticketing, vehicles, payments, subscriptions, and incidents.
+G8 exposes POST /api/events/batch for G2 AnalytiqueTrace batches.
 REST ingestion still expects callers to respect the documented contract.
 ```
 
+### Out of scope: G6 Payments
+
+G6 payment analytics is excluded from this plan. Current class-repo G6 code publishes notification events to `payment.notification` only and does not publish G8 analytics events to `payment.transaction.completed`.

@@ -289,10 +289,8 @@ services:
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_FROM_PHONE: ${TWILIO_FROM_PHONE}
       JWT_SECRET: ${JWT_SECRET}
-      FIREBASE_CREDENTIALS_PATH: /app/firebase-adminsdk.json
+      FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH:-}
       SPRING_PROFILES_ACTIVE: docker
-    volumes:
-      - ./service-notification/firebase-adminsdk.json:/app/firebase-adminsdk.json:ro
     depends_on:
       mysql-notification:
         condition: service_healthy
@@ -572,10 +570,10 @@ services:
       - g7-service
       - user-service
       - g8-analytics-service
+      - g9-service
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - g9-service
 
   grafana:
     image: grafana/grafana:latest
@@ -586,12 +584,10 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
     volumes:
       - grafana-data:/var/lib/grafana
-      # Configuration Prometeus DataSource
-      - ./service-paiement/monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
-      # Configuration Dashboards Provisioning
-      - ./service-paiement/monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
-      # Dashboards JSON
-      - ./service-paiement/monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+      # G8 Prometheus datasource + SGITU G8 dashboard (service-analytique/monitoring/grafana)
+      - ./service-analytique/monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./service-analytique/monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./service-analytique/monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
     networks:
       - sgitu-network
     depends_on:
